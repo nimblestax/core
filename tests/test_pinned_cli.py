@@ -26,9 +26,17 @@ runner = CliRunner()
 PINNED = "9.9.9"
 
 
+# What a deploy reads back as JSON: where the bundle lives, and the manifest copies there.
+JSON_REPLIES = (
+    "[ \"$1 $2\" = 'bundle validate' ]"
+    ' && echo \'{"workspace": {"root_path": "/r"}}\' && exit 0\n'
+    "[ \"$1 $2\" = 'workspace list' ] && echo '[]' && exit 0\n"
+)
+
+
 def fake_cli(calls: Path) -> str:
     """A Databricks CLI that records each call and succeeds."""
-    return f'#!/bin/sh\necho "$@" >> {calls}\necho "Databricks CLI v{PINNED}"\n'
+    return f'#!/bin/sh\necho "$@" >> {calls}\n{JSON_REPLIES}echo "Databricks CLI v{PINNED}"\n'
 
 
 def archive(binary: str, script: str) -> bytes:
@@ -167,7 +175,8 @@ def own_cli(folder: Path, version: str) -> Path:
     """A Databricks CLI someone installed themselves, which records its calls beside it."""
     script = folder / "own-databricks"
     script.write_text(
-        f'#!/bin/sh\necho "$@" >> {folder}/own-calls\necho "Databricks CLI v{version}"\n'
+        f'#!/bin/sh\necho "$@" >> {folder}/own-calls\n{JSON_REPLIES}'
+        f'echo "Databricks CLI v{version}"\n'
     )
     script.chmod(0o755)
     return script

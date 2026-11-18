@@ -65,7 +65,7 @@ Each command's page describes its `result`.
 - [`nstx validate`](commands/validate.md): Check config and SQL references. With `--platform`, also check the workspace.
 - [`nstx schema`](commands/schema.md): Print a Kind's fields from the installed Nimblestax. Needs no project.
 - [`nstx compile`](commands/compile.md): Write generated code, or print it for one Environment.
-- [`nstx deploy`](commands/deploy.md): Deploy to an Environment and refresh its tables.
+- [`nstx deploy`](commands/deploy.md): Deploy to an Environment, refresh its tables, and write its Deployment Manifest.
 - [`nstx preview`](commands/preview.md): Deploy your working tree to your own Preview Environment, and build every table.
 - [`nstx skills update`](commands/skills.md#update): Refresh both copies of each Nimblestax Skill to this Nimblestax's version.
 

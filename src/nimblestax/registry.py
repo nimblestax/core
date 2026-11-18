@@ -1013,6 +1013,48 @@ RULES = {
         example=Example(command="nstx init --example teapot"),
         fix="Name an example the diagnostic lists, such as `nstx init --example kettle`.",
     ),
+    "NSTX917": Rule(
+        "not-a-build-package",
+        checks="`nstx deploy --package` names a folder that isn't a Build Package.",
+        why="A Build Package is what `nstx compile` writes: the generated code, every"
+        " Environment's settings, and `nimblestax.package.json`, which records the commit it was"
+        " built from and a checksum of every file. The folder has no `nimblestax.package.json`,"
+        " so Nimblestax can't tell what it holds, and deploys nothing.",
+        example=Example(command="nstx deploy --env dev --package src"),
+        fix="Pass the folder `nstx compile` wrote, such as `build`, or the artifact CI downloaded"
+        " from the run that built it.",
+    ),
+    "NSTX918": Rule(
+        "build-package-changed",
+        checks="A file in the Build Package `nstx deploy --package` was given differs from what"
+        " was built.",
+        why="Every Environment receives the same Build Package, so prod runs exactly what the"
+        " stages before it ran. `nimblestax.package.json` holds a checksum of each file, and a"
+        " file that was added, removed or edited since breaks that promise, so Nimblestax deploys"
+        " nothing. The diagnostic names the files that differ.",
+        example=Example(
+            command="nstx deploy --env dev --package build",
+            when="`build/src/sales/gold/fct_orders.sql` was edited after `nstx compile`.",
+        ),
+        fix="Deploy the package as `nstx compile` wrote it. To change what it holds, change the"
+        " project and build a new one.",
+    ),
+    "NSTX919": Rule(
+        "manifest-copies-not-removed",
+        checks="A deploy succeeded, but old copies of the Deployment Manifest couldn't be"
+        " removed.",
+        why="Each deploy writes the Deployment Manifest next to the deployed bundle, plus a copy"
+        " named for its commit, and keeps only the newest 100 copies. Removing older ones failed,"
+        " so there are more than 100 for now. Nothing reads the copies to deploy or plan, so the"
+        " deploy still succeeds.",
+        example=Example(
+            command="nstx deploy --env dev",
+            when="The deploying identity can write files in the bundle's folder but not delete"
+            " them.",
+        ),
+        fix="Nothing to do now: the next deploy tries again. If this repeats, check that the"
+        " deploying identity can delete files in the bundle's `nimblestax/manifests` folder.",
+    ),
     "NSTX920": Rule(
         "preview-schema-taken",
         checks="`nstx preview` would deploy into a schema that another project, another person, or"

@@ -124,12 +124,17 @@ def run_nimblestax(*args: str, databricks: Path) -> subprocess.CompletedProcess:
 
 
 def fake_databricks(folder: Path, exit_code: int = 0) -> Path:
-    """A Databricks CLI that logs to stdout, as the real one does for bundle runs."""
+    """A Databricks CLI that logs to stdout, as the real one does for bundle runs, and prints
+    JSON where Nimblestax asks for it."""
     folder.mkdir()
     script = folder / "databricks"
     script.write_text(
         "#!/bin/sh\n"
         f"[ \"$1\" = --version ] && echo 'Databricks CLI v{pinned_cli.MINIMUM}' && exit 0\n"
+        '[ "$1 $2" = \'bundle validate\' ] && echo \'{"workspace": {"root_path": "/r"}}\''
+        " && exit 0\n"
+        "[ \"$1 $2\" = 'workspace list' ] && echo '[]' && exit 0\n"
+        '[ "$1" = workspace ] && exit 0\n'
         f"echo 'Uploading bundle files'\nexit {exit_code}\n"
     )
     script.chmod(0o755)
@@ -146,7 +151,7 @@ def test_stdout_is_pure_json_while_the_databricks_cli_logs(project: Path, tmp_pa
     assert result.returncode == 0, result.stderr
     envelope = json.loads(result.stdout)
     assert envelope["schema"] == "nimblestax.deploy/1"
-    assert envelope["result"] == {"env": "dev"}
+    assert envelope["result"]["env"] == "dev"
     assert "Uploading bundle files" in result.stderr
 
 
@@ -311,6 +316,9 @@ REGISTERED_RULES = {
     "NSTX914": "skills-folder-ignored",
     "NSTX915": "skill-edited",
     "NSTX916": "unknown-example",
+    "NSTX917": "not-a-build-package",
+    "NSTX918": "build-package-changed",
+    "NSTX919": "manifest-copies-not-removed",
     "NSTX920": "preview-schema-taken",
     "NSTX921": "example-has-no-preview",
     "NSTX922": "preview-down-outside-fence",
@@ -493,7 +501,7 @@ def test_every_project_rule_reports_a_message_and_a_fix_and_exits_1(
 
 def test_a_new_rule_must_be_tested_here():
     """The tests above, and the refresh failure, init folder, pinned CLI, platform check,
-    skills, Kettle and preview tests, cover these by name. A new rule joins one."""
+    skills, Kettle, preview and Build Package tests, cover these by name. A new rule joins one."""
     usage_and_environment = {"NSTX901", "NSTX902", "NSTX903", "NSTX904", "NSTX905", "NSTX909"}
     refresh_failures = {"NSTX906", "NSTX907", "NSTX908"}
     pinned_cli_failures = {"NSTX910", "NSTX911", "NSTX912", "NSTX913"}
@@ -501,6 +509,7 @@ def test_a_new_rule_must_be_tested_here():
     skills = {"NSTX129", "NSTX914", "NSTX915"}
     examples = {"NSTX916"}
     previews = {"NSTX920", "NSTX921", "NSTX922"}
+    build_packages = {"NSTX917", "NSTX918", "NSTX919"}
 
     assert set(RULES) == (
         set(INVALID_PROJECTS)
@@ -511,6 +520,7 @@ def test_a_new_rule_must_be_tested_here():
         | skills
         | examples
         | previews
+        | build_packages
     )
 
 

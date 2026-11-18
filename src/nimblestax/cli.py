@@ -542,6 +542,13 @@ def compile_(
 
 class Deployed(BaseModel):
     env: str = Field(description="The Environment deployed and refreshed.")
+    commit: str | None = Field(
+        description="The commit the Build Package was built from, or `null` if it was built"
+        " outside Git."
+    )
+    package_checksum: str = Field(
+        description="The Build Package's checksum, as its Deployment Manifest records it."
+    )
 
 
 @command()
@@ -555,15 +562,27 @@ def deploy(
             show_default=False,
         ),
     ] = None,
+    package: Annotated[
+        Path | None,
+        typer.Option(
+            "--package",
+            help="The Build Package to deploy, as `nstx compile` wrote it. It is deployed as it"
+            " is, never rebuilt. Left out, the project is validated and built first.",
+            show_default=False,
+        ),
+    ] = None,
     root: ProjectOption = Path("."),
 ) -> Outcome[Deployed]:
-    """Deploy to an Environment and refresh its tables."""
+    """Deploy to an Environment, refresh its tables, and write its Deployment Manifest."""
     if env is None:
         raise Failure([_DEPLOY_WITHOUT_ENV], USAGE_OR_ENVIRONMENT)
     loaded = project.load(root)
     _require_environment(loaded, env)
-    delivery.deploy(loaded, env, DatabricksCli())
-    return Outcome(f"Deployed to {env}", Deployed(env=env))
+    written, warnings = delivery.deploy(loaded, env, DatabricksCli(), package)
+    deployed = Deployed(
+        env=env, commit=written["commit"], package_checksum=written["package_checksum"]
+    )
+    return Outcome(f"Deployed to {env}", deployed, warnings)
 
 
 # `--env` is optional on the command line only so this fix, not a usage message, reaches the user.
