@@ -18,6 +18,8 @@ environments:
 
 `nstx init` writes `dev` with `role: development`. Add the others as you need them.
 
+Each person can also deploy their working tree to a [preview environment](preview-environments.md) of their own, in the development environment's catalogs.
+
 ## Roles
 
 Nimblestax never reads meaning into a name. An environment called `prod` with no role is an ordinary stage, and one called `prd` with `role: production` is the production environment.

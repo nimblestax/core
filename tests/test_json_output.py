@@ -279,6 +279,7 @@ REGISTERED_RULES = {
     "NSTX130": "no-development-environment",
     "NSTX131": "two-environments-with-one-role",
     "NSTX132": "environment-name-not-an-identifier",
+    "NSTX133": "reserved-environment-name",
     "NSTX201": "unresolved-logical-name",
     "NSTX202": "duplicate-table",
     "NSTX203": "unparseable-sql",
@@ -293,6 +294,7 @@ REGISTERED_RULES = {
     "NSTX212": "stream-of-materialized-view",
     "NSTX301": "missing-catalog",
     "NSTX302": "missing-schema",
+    "NSTX303": "developer-group-missing-grant",
     "NSTX901": "usage-error",
     "NSTX902": "unknown-environment",
     "NSTX903": "databricks-cli-missing",
@@ -309,6 +311,9 @@ REGISTERED_RULES = {
     "NSTX914": "skills-folder-ignored",
     "NSTX915": "skill-edited",
     "NSTX916": "unknown-example",
+    "NSTX920": "preview-schema-taken",
+    "NSTX921": "example-has-no-preview",
+    "NSTX922": "preview-down-outside-fence",
 }
 
 
@@ -428,6 +433,9 @@ INVALID_PROJECTS = {
     "NSTX132": replacing(
         PLATFORM, "    role: development\n", "    role: development\n  prd-1: {}\n"
     ),
+    "NSTX133": replacing(
+        PLATFORM, "    role: development\n", "    role: development\n  preview: {}\n"
+    ),
     "NSTX201": lambda project: (project / f"{MODEL}.sql").write_text("SELECT * FROM a.b.c"),
     "NSTX202": seed("code: STRING", "code\nAU\n", name="orders"),
     "NSTX203": lambda project: (project / f"{MODEL}.sql").write_text("SELECT FROM WHERE"),
@@ -485,13 +493,14 @@ def test_every_project_rule_reports_a_message_and_a_fix_and_exits_1(
 
 def test_a_new_rule_must_be_tested_here():
     """The tests above, and the refresh failure, init folder, pinned CLI, platform check,
-    skills and Kettle tests, cover these by name. A new rule joins one."""
+    skills, Kettle and preview tests, cover these by name. A new rule joins one."""
     usage_and_environment = {"NSTX901", "NSTX902", "NSTX903", "NSTX904", "NSTX905", "NSTX909"}
     refresh_failures = {"NSTX906", "NSTX907", "NSTX908"}
     pinned_cli_failures = {"NSTX910", "NSTX911", "NSTX912", "NSTX913"}
-    platform_checks = {"NSTX301", "NSTX302"}
+    platform_checks = {"NSTX301", "NSTX302", "NSTX303"}
     skills = {"NSTX129", "NSTX914", "NSTX915"}
     examples = {"NSTX916"}
+    previews = {"NSTX920", "NSTX921", "NSTX922"}
 
     assert set(RULES) == (
         set(INVALID_PROJECTS)
@@ -501,6 +510,7 @@ def test_a_new_rule_must_be_tested_here():
         | platform_checks
         | skills
         | examples
+        | previews
     )
 
 

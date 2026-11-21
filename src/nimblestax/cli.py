@@ -22,6 +22,7 @@ from nimblestax.build import compiler
 from nimblestax.check import platform_objects, rules
 from nimblestax.deploy import deploy as delivery
 from nimblestax.deploy import pinned_cli
+from nimblestax.deploy import preview as previews
 from nimblestax.deploy.databricks import DatabricksCli
 from nimblestax.diagnostics import (
     EXIT_CODES,
@@ -573,6 +574,48 @@ _DEPLOY_WITHOUT_ENV = error(
     " default Environment.",
     "Add the Environment to deploy, such as `nstx deploy --env dev`.",
 )
+
+
+class Previewed(BaseModel):
+    schemas: list[str] = Field(
+        description="The Preview Environment's schemas, as `catalog.schema`, in the Development"
+        " Environment's catalogs."
+    )
+
+
+class PreviewDown(StrEnum):
+    down = "down"
+
+
+class Removed(BaseModel):
+    """With `down`, `preview` removes the Preview Environment instead."""
+
+    removed: bool = Field(description="Always `true`: the Preview Environment is gone.")
+
+
+@command()
+def preview(
+    action: Annotated[
+        PreviewDown | None,
+        typer.Argument(
+            help="`down` removes your Preview Environment of this project instead.",
+            show_default=False,
+        ),
+    ] = None,
+    root: ProjectOption = Path("."),
+) -> Outcome[Previewed | Removed]:
+    """Deploy your working tree to your own Preview Environment, and build every table."""
+    loaded = project.load(root)
+    if action == PreviewDown.down:
+        previews.down(loaded, DatabricksCli())
+        return Outcome("Removed your Preview Environment of this project.", Removed(removed=True))
+    schemas = previews.preview(loaded, DatabricksCli())
+    lines = [
+        "Deployed your working tree to your Preview Environment, in:",
+        *(f"  {schema}" for schema in schemas),
+        "Remove it with `nstx preview down` when you're done.",
+    ]
+    return Outcome("\n".join(lines), Previewed(schemas=schemas))
 
 
 @app.command(

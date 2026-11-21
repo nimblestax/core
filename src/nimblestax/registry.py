@@ -576,6 +576,23 @@ RULES = {
         fix="Rename the Environment to letters, digits and underscores, such as `prd` or"
         " `test_2`.",
     ),
+    "NSTX133": Rule(
+        "reserved-environment-name",
+        checks="An Environment is named `preview`.",
+        why="`preview` is the bundle target every Preview Environment deploys through, so an"
+        " Environment with that name would share its target.",
+        example=Example(
+            files={
+                "nimblestax.platform.yaml": "kind: platform\nversion: 2\nname: shop\n"
+                "environments:\n  dev:\n    host: https://shop.cloud.databricks.com\n"
+                "    role: development\n  preview: {}\n"
+                "naming:\n  style: domain-catalogs\n  layers:\n    models: [gold]\n"
+                "domains:\n  - sales\n"
+            },
+            command="nstx validate",
+        ),
+        fix="Rename the Environment, such as to `staging`.",
+    ),
     "NSTX201": Rule(
         "unresolved-logical-name",
         checks="SQL reads a table that isn't in the project.",
@@ -771,6 +788,28 @@ RULES = {
             when="dev's workspace has the catalog `dev_sales` but no schema `silver` in it.",
         ),
         fix="Create the schema in its catalog, or grant the identity `USE SCHEMA` on it.",
+    ),
+    "NSTX303": Rule(
+        "developer-group-missing-grant",
+        checks="With `--platform` on the Development Environment, the group `developers` names"
+        " lacks `USE CATALOG`, `USE SCHEMA`, `CREATE SCHEMA` or `READ VOLUME` on one"
+        " of its catalogs.",
+        why="Each person deploys their own Preview Environment with their own login, into schemas"
+        " they create in the Development Environment's catalogs, and its sources read the files"
+        " that land in its Volumes. The group needs those four privileges there, and only"
+        " there.",
+        example=Example(
+            files={
+                "nimblestax.platform.yaml": "kind: platform\nversion: 2\nname: shop\n"
+                "environments:\n  dev:\n    host: https://shop.cloud.databricks.com\n"
+                "    role: development\ndevelopers: data-engineers\n"
+                "naming:\n  style: domain-catalogs\n  layers:\n    models: [gold]\n"
+                "domains:\n  - sales\n"
+            },
+            command="nstx validate --platform",
+            when="`data-engineers` has no `CREATE SCHEMA` on `dev_sales`.",
+        ),
+        fix="Run the `GRANT` the diagnostic gives, as the catalog's owner.",
     ),
     "NSTX901": Rule(
         "usage-error",
@@ -973,5 +1012,45 @@ RULES = {
         " examples there are. It exits 2, because the command line needs a change.",
         example=Example(command="nstx init --example teapot"),
         fix="Name an example the diagnostic lists, such as `nstx init --example kettle`.",
+    ),
+    "NSTX920": Rule(
+        "preview-schema-taken",
+        checks="`nstx preview` would deploy into a schema that another project, another person, or"
+        " someone by hand already created.",
+        why="A Preview Environment creates its own schemas in the Development Environment's"
+        " catalogs, each labelled with the project and the person in its properties, and `nstx"
+        " preview down` removes them. A schema it didn't create isn't its to fill or to remove, so"
+        " `nstx preview` stops before it changes anything. It exits 2.",
+        example=Example(
+            command="nstx preview",
+            when="Another of your projects, `warehouse`, already has a preview with the schema"
+            " `dev_sales.u_priya_sharma__silver`.",
+        ),
+        fix="Remove the other preview with `nstx preview down` from its project, or drop the"
+        " schema if nobody needs it, then run `nstx preview` again.",
+    ),
+    "NSTX921": Rule(
+        "example-has-no-preview",
+        checks="`nstx preview` was run in an example project, such as Kettle.",
+        why="An example already runs in catalogs of its own, made for the person who ran it, so a"
+        " Preview Environment would add nothing. It exits 2, and changes nothing in the"
+        " workspace.",
+        example=Example(command="nstx preview", when="The project is Kettle."),
+        fix="Deploy the example directly, with `nstx deploy --env <env>`.",
+    ),
+    "NSTX922": Rule(
+        "preview-down-outside-fence",
+        checks="`nstx preview down` found a schema in the preview's bundle state outside your"
+        " `u_<user>__` schemas, or outside the Development Environment's catalogs.",
+        why="`nstx preview down` destroys what the preview's bundle deployed, read from its"
+        " bundle state. A Preview Environment only ever has your own `u_<user>__` schemas in the"
+        " Development Environment's catalogs, so anything else in that state is a mistake, and"
+        " `nstx preview down` refuses to remove anything rather than drop it. It exits 2.",
+        example=Example(
+            command="nstx preview down",
+            when="The preview's bundle state holds the schema `prod_sales.silver`.",
+        ),
+        fix="Find out how that schema got into the preview's bundle state before removing"
+        " anything. Drop the preview's own schemas by hand if you need to.",
     ),
 }

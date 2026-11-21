@@ -204,3 +204,126 @@ def test_env_without_platform_is_a_usage_error(project: Path, workspace: FakeUni
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
     assert diagnostic["rule"] == "NSTX901"
     assert "--platform" in diagnostic["fix"]
+
+
+class GrantedUnityCatalog(FakeUnityCatalog):
+    """Also reports each principal's privileges on a catalog."""
+
+    def __init__(self, schemas: dict[str, set[str]], granted: dict[str, set[str]]):
+        super().__init__(schemas)
+        self.granted = granted
+
+    def privileges(self, host: str, catalog: str, principal: str) -> set[str]:
+        self.calls.append(("privileges", host, catalog, principal))
+        return self.granted.get(catalog, set())
+
+
+ALL_FOUR = {"USE_CATALOG", "USE_SCHEMA", "CREATE_SCHEMA", "READ_VOLUME"}
+
+
+def name_developers(project: Path) -> None:
+    contract = project / "nimblestax.platform.yaml"
+    contract.write_text(
+        contract.read_text().replace("naming:\n", "developers: data-engineers\nnaming:\n", 1)
+    )
+
+
+@pytest.fixture
+def granted(monkeypatch: pytest.MonkeyPatch) -> GrantedUnityCatalog:
+    fake = GrantedUnityCatalog({"dev_sales": {"bronze", "silver", "gold"}}, {"dev_sales": ALL_FOUR})
+    monkeypatch.setattr(cli, "DatabricksCli", lambda: fake)
+    return fake
+
+
+def test_the_developer_group_with_its_four_grants_on_dev_validates(
+    project: Path, granted: GrantedUnityCatalog
+):
+    name_developers(project)
+
+    result = nstx(project, "validate", "--platform", "--json")
+
+    assert result.exit_code == 0, result.output
+    assert ("privileges", HOST, "dev_sales", "data-engineers") in granted.calls
+
+
+@pytest.mark.parametrize("missing", sorted(ALL_FOUR))
+def test_a_missing_developer_grant_fails_with_the_sql_that_grants_it(
+    project: Path, granted: GrantedUnityCatalog, missing: str
+):
+    name_developers(project)
+    granted.granted["dev_sales"] = ALL_FOUR - {missing}
+
+    result = nstx(project, "validate", "--platform", "--json")
+
+    assert result.exit_code == 1, result.output
+    [diagnostic] = json.loads(result.stdout)["diagnostics"]
+    assert diagnostic["rule"] == "NSTX303"
+    assert "data-engineers" in diagnostic["message"]
+    assert "dev_sales" in diagnostic["message"]
+    privilege = missing.replace("_", " ")
+    assert f"GRANT {privilege} ON CATALOG dev_sales TO `data-engineers`;" in diagnostic["fix"]
+
+
+def test_all_privileges_holds_every_developer_grant(project: Path, granted: GrantedUnityCatalog):
+    name_developers(project)
+    granted.granted["dev_sales"] = {"ALL_PRIVILEGES"}
+
+    result = nstx(project, "validate", "--platform", "--json")
+
+    assert result.exit_code == 0, result.output
+
+
+def test_developer_grants_are_checked_only_in_the_development_environment(
+    project: Path, granted: GrantedUnityCatalog
+):
+    add_prod(project, None)
+    name_developers(project)
+    granted.schemas_by_catalog = {"prod_sales": {"bronze", "silver", "gold"}}
+
+    result = nstx(project, "validate", "--platform", "--env", "prod", "--json")
+
+    assert result.exit_code == 0, result.output
+    assert not [call for call in granted.calls if call[0] == "privileges"]
+
+
+def test_without_a_developer_group_no_grant_is_read(project: Path, granted: GrantedUnityCatalog):
+    result = nstx(project, "validate", "--platform", "--json")
+
+    assert result.exit_code == 0, result.output
+    assert not [call for call in granted.calls if call[0] == "privileges"]
+
+
+def test_the_databricks_cli_reads_the_developer_groups_effective_grants(
+    project: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    name_developers(project)
+    cli_folder = tmp_path / "cli"
+    cli_folder.mkdir()
+    script = fake_cli(cli_folder, ["dev_sales"], ["bronze", "silver", "gold"])
+    granted = {
+        "privilege_assignments": [
+            {
+                "principal": "data-engineers",
+                "privileges": [{"privilege": "USE_CATALOG"}, {"privilege": "USE_SCHEMA"}],
+            }
+        ]
+    }
+    script.write_text(
+        script.read_text().replace(
+            "  *) exit 1 ;;\n",
+            f"  \"grants get-effective\") echo '{json.dumps(granted)}' ;;\n  *) exit 1 ;;\n",
+        )
+    )
+    monkeypatch.setenv(pinned_cli.OVERRIDE, str(script))
+
+    result = nstx(project, "validate", "--platform", "--json")
+
+    assert result.exit_code == 1, result.output
+    [diagnostic] = json.loads(result.stdout)["diagnostics"]
+    assert diagnostic["rule"] == "NSTX303"
+    assert "CREATE SCHEMA, READ VOLUME" in diagnostic["message"]
+    calls = (cli_folder / "calls").read_text().splitlines()
+    assert (
+        f"{HOST} grants get-effective catalog dev_sales --principal data-engineers --output json"
+        in calls
+    )

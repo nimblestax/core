@@ -19,6 +19,9 @@ PLACEHOLDERS = ("{env}", "{domain}", "{layer}")
 SHARED_DOMAIN = "shared"
 
 
+# The bundle target Preview Environments deploy through, so no Environment can take its name.
+PREVIEW = "preview"
+
 Role = Literal["development", "production"]
 DEVELOPMENT: Role = "development"
 PRODUCTION: Role = "production"
@@ -119,6 +122,13 @@ def _checked(environments: dict[str, Environment]) -> dict[str, Environment]:
                     " with a letter or underscore, such as `prd` or `test_2`.",
                 },
             )
+    if PREVIEW in environments:
+        raise PydanticCustomError(
+            "NSTX133",
+            "An Environment is named `preview`, which is the bundle target every Preview"
+            " Environment deploys through.",
+            {"fix": "Rename the Environment, such as to `staging`."},
+        )
     for role in (DEVELOPMENT, PRODUCTION):
         holders = [env for env, settings in environments.items() if settings.role == role]
         if len(holders) > 1:
@@ -340,6 +350,14 @@ class PlatformV2(BaseModel):
     domains: list[Identifier] = Field(
         json_schema_extra={"uniqueItems": True},
         description="The Domains, one folder each under `domains/`.",
+    )
+    developers: str | None = Field(
+        default=None,
+        min_length=1,
+        description="The group whose members deploy their own Preview Environments into the"
+        " Development Environment's catalogs. `nstx validate --platform` checks it holds `USE"
+        " CATALOG`, `USE SCHEMA`, `CREATE SCHEMA` and `READ VOLUME` on them. Left out, nothing"
+        " is checked.",
     )
 
     @field_validator("environments")
