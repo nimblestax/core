@@ -11,6 +11,8 @@ Nimblestax follows [Semantic Versioning](https://semver.org). Before 1.0, a mino
 
 ## Unreleased
 
+- [`nstx preview`](reference/commands/preview.md) deploys your working tree to your own preview environment, in `u_<you>__` schemas in the development environment's catalogs, with your own login, and builds every table. `nstx preview down` removes it. `nimblestax.platform.yaml` can name your team's `developers` group, and `nstx validate --platform` checks it holds the grants a preview needs. No environment can be named `preview`. See [Preview environments](concepts/preview-environments.md).
+
 ## 0.1.0
 
 The first release. Install it into your project with `uv add --dev nimblestax`, which gives you the `nstx` command and `nimblestax`, its long form.

@@ -65,6 +65,34 @@ class DatabricksCli:
             errors.extend(failed_update_errors(events))
         return errors
 
+    def destroy_bundle(self, package: Path, target: str) -> None:
+        self._stream(package, "bundle", "destroy", "--target", target, "--auto-approve")
+
+    def deployed_schemas(self, package: Path, target: str) -> list[tuple[str, str]]:
+        summary = self._json(package, "bundle", "summary", "--target", target, "-o", "json")
+        schemas = summary.get("resources", {}).get("schemas", {}).values()
+        return [(schema["catalog_name"], schema["name"]) for schema in schemas]
+
+    def current_user(self, host: str) -> str:
+        return self._json(None, "current-user", "me", "--output", "json", host=host)["userName"]
+
+    def schema_properties(self, host: str, catalog: str) -> dict[str, dict[str, str]]:
+        listed = self._json(None, "schemas", "list", catalog, "--output", "json", host=host)
+        return {schema["name"]: schema.get("properties") or {} for schema in listed}
+
+    def privileges(self, host: str, catalog: str, principal: str) -> set[str]:
+        found = self._json(
+            None,
+            *("grants", "get-effective", "catalog", catalog, "--principal", principal),
+            *("--output", "json"),
+            host=host,
+        )
+        return {
+            granted["privilege"]
+            for assignment in found.get("privilege_assignments") or []
+            for granted in assignment.get("privileges") or []
+        }
+
     def catalogs(self, host: str) -> set[str]:
         listed = self._json(None, "catalogs", "list", "--output", "json", host=host)
         return {catalog["name"] for catalog in listed}

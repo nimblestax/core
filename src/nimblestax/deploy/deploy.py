@@ -1,6 +1,7 @@
 """`nstx deploy`: ships one Environment and refreshes it."""
 
 from datetime import datetime
+from pathlib import Path
 
 from nimblestax.build import bundle, compiler
 from nimblestax.check import rules
@@ -26,14 +27,18 @@ def deploy(project: Project, env: str, workspace: Workspace) -> None:
     problems = errors(rules.check(project))
     if problems:
         raise InvalidProject(problems)
-    package = compiler.write_package(project)
-    workspace.deploy_bundle(package, env)
+    ship(compiler.write_package(project), env, workspace)
+
+
+def ship(package: Path, target: str, workspace: Workspace) -> None:
+    """Deploy a written package to one target, then refresh its tables."""
+    workspace.deploy_bundle(package, target)
     started = datetime.now().astimezone()
     try:
-        workspace.run_job(package, env, bundle.REFRESH_JOB)
+        workspace.run_job(package, target, bundle.REFRESH_JOB)
     except WorkspaceError as failure:
         try:
-            messages = workspace.pipeline_errors(package, env, started)
+            messages = workspace.pipeline_errors(package, target, started)
         except WorkspaceError as lookup:
             raise _unexplained(failure, lookup) from failure
         if not messages:

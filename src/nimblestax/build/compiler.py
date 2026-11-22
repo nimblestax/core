@@ -39,7 +39,7 @@ def generated_files(project: Project) -> dict[Path, str]:
     return files
 
 
-def write_package(project: Project) -> Path:
+def write_package(project: Project, preview: bundle.Preview | None = None) -> Path:
     package = project.root / BUILD_FOLDER
     shutil.rmtree(package, ignore_errors=True)
     package.mkdir()
@@ -47,7 +47,7 @@ def write_package(project: Project) -> Path:
         target = package / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content)
-    (package / "databricks.yaml").write_text(bundle.render(project))
+    (package / "databricks.yaml").write_text(bundle.render(project, preview))
     return package
 
 

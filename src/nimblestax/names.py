@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -107,6 +108,55 @@ def settings(project: Project, env: str) -> dict[str, str]:
         # Escaped, because generated code substitutes it between the quotes of a string literal.
         values[_path_setting(source)] = escaped(source.path_in(env))
     return values
+
+
+# A Preview Environment is named by its prefix, and lives in the Development Environment's catalogs.
+PERSONAL = "u_"
+
+
+# A user name's part before the `@` that reads back from its cleaned form: words joined by dots.
+PLAIN_USER = re.compile(r"[a-z0-9]+(\.[a-z0-9]+)*")
+
+
+def personal_prefix(user: str) -> str:
+    """The prefix of one person's Preview Environment schemas, from their user name.
+
+    `priya.sharma@acme.com` is `u_priya_sharma__`. Any other character becomes `_` too, and
+    then a short hash of the whole name keeps `priya_sharma` apart from `priya.sharma`.
+    """
+    local = user.split("@")[0].lower()
+    cleaned = re.sub(r"[^a-z0-9]+", "_", local).strip("_") or "user"
+    if not PLAIN_USER.fullmatch(local):
+        cleaned += "_" + hashlib.sha256(user.lower().encode()).hexdigest()[:6]
+    return f"{PERSONAL}{cleaned}__"
+
+
+def preview_schemas(platform: Platform, prefix: str) -> dict[str, tuple[str, str]]:
+    """Each Domain and Layer's catalog and schema in a Preview Environment, by `<domain>_<layer>`.
+
+    The catalogs are the Development Environment's, and each schema is its own with `prefix`.
+    """
+    found = {}
+    for domain in platform.domains:
+        for layer in (*platform.source_layers, *platform.model_layers):
+            catalog, schema = real_names(
+                platform.naming.style, platform.development_environment, domain, layer
+            )
+            found[f"{domain}_{layer}".lower()] = (catalog, f"{prefix}{schema}")
+    return found
+
+
+def preview_settings(project: Project, prefix: str) -> dict[str, str]:
+    """The value of every placeholder in a Preview Environment.
+
+    It is the Development Environment's, with each schema prefixed, so a Source reads the files
+    that land in dev.
+    """
+    values = settings(project, project.platform.development_environment)
+    return {
+        key: f"{prefix}{value}" if key.startswith("schema_") else value
+        for key, value in values.items()
+    }
 
 
 def platform_objects(

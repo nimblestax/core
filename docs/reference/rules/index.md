@@ -42,6 +42,7 @@ A Rule's ID is `NSTX` plus three digits, and its first digit is its series. Each
 | [`NSTX130`](nstx130.md) | `no-development-environment` | No Environment in `nimblestax.platform.yaml` sets `role: development`. |
 | [`NSTX131`](nstx131.md) | `two-environments-with-one-role` | More than one Environment in `nimblestax.platform.yaml` sets the same `role`. |
 | [`NSTX132`](nstx132.md) | `environment-name-not-an-identifier` | An Environment's name in `nimblestax.platform.yaml` isn't an identifier: letters, digits and underscores, starting with a letter or underscore. |
+| [`NSTX133`](nstx133.md) | `reserved-environment-name` | An Environment is named `preview`. |
 
 ## `NSTX2xx` SQL and reads between tables
 
@@ -66,6 +67,7 @@ A Rule's ID is `NSTX` plus three digits, and its first digit is its series. Each
 | --- | --- | --- |
 | [`NSTX301`](nstx301.md) | `missing-catalog` | With `--platform`, a catalog the project's tables need isn't in the Environment's workspace, or the identity Nimblestax signs in as can't see it. |
 | [`NSTX302`](nstx302.md) | `missing-schema` | With `--platform`, a schema the project's tables need isn't in its catalog in the Environment's workspace, or the identity Nimblestax signs in as can't see it. |
+| [`NSTX303`](nstx303.md) | `developer-group-missing-grant` | With `--platform` on the Development Environment, the group `developers` names lacks `USE CATALOG`, `USE SCHEMA`, `CREATE SCHEMA` or `READ VOLUME` on one of its catalogs. |
 
 ## `NSTX9xx` The command line and running against Databricks
 
@@ -87,3 +89,6 @@ A Rule's ID is `NSTX` plus three digits, and its first digit is its series. Each
 | [`NSTX914`](nstx914.md) | `skills-folder-ignored` | `nstx init` wrote Nimblestax Skills into a folder Git ignores, such as `.claude/`. |
 | [`NSTX915`](nstx915.md) | `skill-edited` | `nstx skills update` found a Nimblestax Skill edited since Nimblestax wrote it. |
 | [`NSTX916`](nstx916.md) | `unknown-example` | `nstx init --example` names an example Nimblestax doesn't ship. |
+| [`NSTX920`](nstx920.md) | `preview-schema-taken` | `nstx preview` would deploy into a schema that another project, another person, or someone by hand already created. |
+| [`NSTX921`](nstx921.md) | `example-has-no-preview` | `nstx preview` was run in an example project, such as Kettle. |
+| [`NSTX922`](nstx922.md) | `preview-down-outside-fence` | `nstx preview down` found a schema in the preview's bundle state outside your `u_<user>__` schemas, or outside the Development Environment's catalogs. |

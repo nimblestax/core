@@ -27,3 +27,4 @@ A file with `kind: platform`, at version 2. `nstx schema platform` prints the sa
 | `naming.layers` | object | yes |  | The model Layers. |
 | `naming.layers.models` | list of string | yes |  | One or more model Layers, in any order. Each is a folder under `models/`. |
 | `domains` | list of string | yes |  | The Domains, one folder each under `domains/`. |
+| `developers` | string | no | `null` | The group whose members deploy their own Preview Environments into the Development Environment's catalogs. `nstx validate --platform` checks it holds `USE CATALOG`, `USE SCHEMA`, `CREATE SCHEMA` and `READ VOLUME` on them. Left out, nothing is checked. |
