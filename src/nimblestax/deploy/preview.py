@@ -6,7 +6,7 @@ only what it deployed.
 """
 
 from pathlib import Path
-from typing import Protocol
+from typing import NamedTuple, Protocol
 
 from nimblestax import names, scaffold
 from nimblestax.build import bundle, compiler
@@ -35,8 +35,14 @@ class PreviewWorkspace(Workspace, Protocol):
     def destroy_bundle(self, package: Path, target: str) -> None: ...
 
 
-def preview(project: Project, workspace: PreviewWorkspace) -> list[str]:
-    """Deploy the working tree to the signed-in person's Preview Environment and refresh it.
+class Previewed(NamedTuple):
+    schemas: list[str]
+    warnings: list[Diagnostic]
+
+
+def preview(project: Project, workspace: PreviewWorkspace) -> Previewed:
+    """Deploy the working tree to the signed-in person's Preview Environment, refresh it, and
+    write its Deployment Manifest in the preview's own bundle folder.
 
     Returns its schemas, as `catalog.schema`.
     """
@@ -47,9 +53,9 @@ def preview(project: Project, workspace: PreviewWorkspace) -> list[str]:
     target = _whose(project, workspace)
     _refuse_taken(project, target, workspace)
     package = compiler.write_package(project, target)
-    deploy.ship(package, bundle.PREVIEW_TARGET, workspace)
+    shipped = deploy.ship(package, bundle.PREVIEW_TARGET, workspace)
     schemas = names.preview_schemas(project.platform, target.prefix).values()
-    return sorted(f"{catalog}.{schema}" for catalog, schema in schemas)
+    return Previewed(sorted(f"{c}.{s}" for c, s in schemas), shipped.warnings)
 
 
 def _refuse_example(project: Project) -> None:

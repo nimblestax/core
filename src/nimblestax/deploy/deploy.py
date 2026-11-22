@@ -45,17 +45,13 @@ def deploy(
         if problems:
             raise InvalidProject(problems)
         package = compiler.write_package(project)
+    return ship(package, env, workspace)
+
+
+def ship(package: Path, target: str, workspace: Workspace) -> Deployment:
+    """Deploy a written package to one target, refresh its tables, then write its Deployment
+    Manifest next to the deployed bundle. A refresh that fails writes none."""
     record = build_package.read_record(package)
-    started = ship(package, env, workspace)
-    written = manifest.manifest(env, record, started)
-    return Deployment(written, manifest.store(workspace, package, env, written))
-
-
-def ship(package: Path, target: str, workspace: Workspace) -> datetime:
-    """Deploy a written package to one target, then refresh its tables.
-
-    Returns when the refresh started.
-    """
     workspace.deploy_bundle(package, target)
     started = datetime.now().astimezone()
     try:
@@ -69,7 +65,8 @@ def ship(package: Path, target: str, workspace: Workspace) -> datetime:
             raise failure
         found = [refresh_failure(message) for message in messages]
         raise Failure(found, USAGE_OR_ENVIRONMENT) from failure
-    return started
+    written = manifest.manifest(target, record, started)
+    return Deployment(written, manifest.store(workspace, package, target, written))
 
 
 def _unexplained(failure: WorkspaceError, lookup: WorkspaceError) -> WorkspaceError:

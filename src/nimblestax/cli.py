@@ -628,13 +628,13 @@ def preview(
     if action == PreviewDown.down:
         previews.down(loaded, DatabricksCli())
         return Outcome("Removed your Preview Environment of this project.", Removed(removed=True))
-    schemas = previews.preview(loaded, DatabricksCli())
+    schemas, warnings = previews.preview(loaded, DatabricksCli())
     lines = [
         "Deployed your working tree to your Preview Environment, in:",
         *(f"  {schema}" for schema in schemas),
         "Remove it with `nstx preview down` when you're done.",
     ]
-    return Outcome("\n".join(lines), Previewed(schemas=schemas))
+    return Outcome("\n".join(lines), Previewed(schemas=schemas), warnings)
 
 
 @app.command(

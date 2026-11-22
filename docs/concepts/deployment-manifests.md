@@ -3,7 +3,7 @@ title: Deployment manifests
 description: The record each environment keeps of the build package it last received, where it lives, and how many copies are kept.
 ---
 
-A deployment manifest is an environment's record of what it runs: which [build package](build-packages.md) it last received, from which commit, and the tables that package writes. Each successful `nstx deploy` writes one into that environment's workspace.
+A deployment manifest is an environment's record of what it runs: which [build package](build-packages.md) it last received, from which commit, and the tables that package writes. Each successful `nstx deploy` writes one into that environment's workspace, and each successful `nstx preview` writes one for your [preview environment](preview-environments.md).
 
 It is the baseline a change is compared against. Nimblestax can't tell from Unity Catalog alone which config made a table, so it reads what it recorded instead.
 
@@ -48,3 +48,7 @@ Only after a deploy succeeds, refresh included. A deploy whose bundle or refresh
 If old copies can't be removed, the deploy still succeeds and warns with [`NSTX919`](../reference/rules/nstx919.md). The next deploy tries again.
 
 `databricks bundle destroy` removes the bundle folder, and the manifests with it.
+
+## A preview's manifest
+
+`nstx preview` writes its manifest the same way, with `"env": "preview"`, in your preview's own bundle folder, such as `/Workspace/Users/priya.sharma@acme.com/.bundle/kettle/preview`. A preview deploys your working tree, so its `commit` is the commit you're on, plus anything uncommitted: `package_checksum` tells two previews of one commit apart. `nstx preview down` removes the folder, and the manifests with it. A preview's manifest is never the baseline for anyone else's change.

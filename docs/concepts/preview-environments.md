@@ -32,7 +32,7 @@ A preview built from dev's landing files can differ from dev in two ways: rows d
 
 Each schema is the development environment's own, with `u_` and your user name in front, under every naming style. Under `layer-catalogs`, `sales.silver.orders` is `dev_silver.u_priya_sharma__sales.orders`. Your user name is cleaned into a schema name: `priya.sharma@acme.com` becomes `priya_sharma`. A name with other characters, such as `priya_sharma` or `o'neil`, gets a short code after it, so two people never share a prefix.
 
-Your pipelines and Job carry the same prefix, such as `u_priya_sharma__kettle_sales_gold`. Your bundle's state sits in your own workspace folder. So two people's previews never share a schema, a pipeline or a deploy, and neither touches dev's.
+Your pipelines and Job carry the same prefix, such as `u_priya_sharma__kettle_sales_gold`. Your bundle's state sits in your own workspace folder, with your preview's [deployment manifest](deployment-manifests.md#a-previews-manifest). So two people's previews never share a schema, a pipeline or a deploy, and neither touches dev's.
 
 Nimblestax creates your schemas and labels each one with the project's name. It never deploys into a schema it didn't create for this project and for you, and stops with [`NSTX920`](../reference/rules/nstx920.md) instead.
 
@@ -40,7 +40,7 @@ A preview runs its pipelines in development mode: a failed update isn't retried,
 
 ## Removing a preview
 
-`nstx preview down` removes what your preview of this project deployed, read from its bundle state. Your preview of another project, in the same catalogs, stays. It refuses anything outside your `u_` schemas in the development environment's catalogs, with [`NSTX922`](../reference/rules/nstx922.md). Nothing else removes a personal preview, so run it when you're done.
+`nstx preview down` removes what your preview of this project deployed, read from its bundle state, and its bundle folder with its deployment manifest. Your preview of another project, in the same catalogs, stays. It refuses anything outside your `u_` schemas in the development environment's catalogs, with [`NSTX922`](../reference/rules/nstx922.md). Nothing else removes a personal preview, so run it when you're done.
 
 ## What your team grants
 
