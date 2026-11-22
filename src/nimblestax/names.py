@@ -111,7 +111,9 @@ def settings(project: Project, env: str) -> dict[str, str]:
 
 
 # A Preview Environment is named by its prefix, and lives in the Development Environment's catalogs.
+# The two prefixes start differently, so a person's preview and a pull request's never share one.
 PERSONAL = "u_"
+PULL_REQUEST = "pr"
 
 
 # A user name's part before the `@` that reads back from its cleaned form: words joined by dots.
@@ -129,6 +131,11 @@ def personal_prefix(user: str) -> str:
     if not PLAIN_USER.fullmatch(local):
         cleaned += "_" + hashlib.sha256(user.lower().encode()).hexdigest()[:6]
     return f"{PERSONAL}{cleaned}__"
+
+
+def pull_request_prefix(number: int) -> str:
+    """The prefix of one pull request's Preview Environment schemas: `pr42__`."""
+    return f"{PULL_REQUEST}{number}__"
 
 
 def preview_schemas(platform: Platform, prefix: str) -> dict[str, tuple[str, str]]:

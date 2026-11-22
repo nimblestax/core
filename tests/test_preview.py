@@ -67,8 +67,13 @@ class FakeWorkspace:
         self.files = {path: text for path, text in self.files.items() if not path.startswith(root)}
 
     def bundle_root(self, package: Path, target: str) -> str:
-        name = yaml.safe_load((package / "databricks.yaml").read_text())["bundle"]["name"]
-        return f"/Workspace/Users/{self.user}/.bundle/{name}/{target}"
+        """The target's `root_path`, with `~` the signed-in identity's home, as Databricks
+        resolves it."""
+        bundled = yaml.safe_load((package / "databricks.yaml").read_text())
+        name = bundled["bundle"]["name"]
+        configured = bundled["targets"][target].get("workspace", {}).get("root_path")
+        root = configured or f"~/.bundle/{name}/{target}"
+        return root.replace("~", f"/Workspace/Users/{self.user}", 1)
 
     def write_file(self, package: Path, target: str, path: str, content: str) -> None:
         self.files[path] = content
@@ -157,7 +162,7 @@ def test_databricks_accepts_the_preview_target_in_development_mode_and_dev_stays
 ):
     folder = tmp_path / "shop"
     assert runner.invoke(app, ["init", str(folder), "--host", stub_workspace]).exit_code == 0
-    package = compiler.write_package(load(folder), bundle.Preview("u_bijil__", ME))
+    package = compiler.write_package(load(folder), bundle.personal(ME))
 
     preview = validated(package, stub_workspace, "preview", tmp_path)
     dev = validated(package, stub_workspace, "dev", tmp_path)
@@ -507,3 +512,213 @@ def test_the_databricks_cli_deploys_and_removes_the_preview_target_as_the_signed
         "bundle summary --target preview -o json",
         "bundle destroy --target preview --auto-approve",
     ]
+
+
+# Pull request previews: the same machinery, run by CI with `--pr <N>`.
+
+CI = "7da8a1ae-c185-4974-9329-a5695a79d47b"
+
+
+@pytest.fixture
+def ci(monkeypatch: pytest.MonkeyPatch) -> FakeWorkspace:
+    """The Databricks boundary as dev's service principal sees it, from CI."""
+    fake = FakeWorkspace(CI)
+    monkeypatch.setattr(cli, "DatabricksCli", lambda: fake)
+    return fake
+
+
+def test_a_pull_request_preview_deploys_every_table_to_its_own_schemas_under_cis_root(
+    project: Path, ci: FakeWorkspace
+):
+    model = project / "domains/sales/models/gold/fct_orders.sql"
+    model.write_text(model.read_text() + "\n-- changed in pull request 42\n")
+
+    result = nstx(project, "preview", "--pr", "42", "--json")
+
+    assert result.exit_code == 0, result.output
+    assert ("deploy", "preview") in ci.calls
+    assert ("run", "preview", "refresh") in ci.calls
+    target = preview_target(ci)
+    assert set(_schema_names(target)) == {
+        "dev_sales.pr42__bronze",
+        "dev_sales.pr42__silver",
+        "dev_sales.pr42__gold",
+    }
+    assert json.loads(result.stdout)["result"]["schemas"] == sorted(_schema_names(target))
+    # Every table is built, the changed one included.
+    assert (
+        "-- changed in pull request 42"
+        in (project / "build/src/sales/gold/fct_orders.sql").read_text()
+    )
+    # Its bundle state sits under the deploying identity's own root, apart from every
+    # Environment's and from any personal preview's.
+    assert target["workspace"]["root_path"] == "~/.bundle/shop/pull-requests/42"
+    manifest = f"/Workspace/Users/{CI}/.bundle/shop/pull-requests/42/nimblestax/manifest.json"
+    assert json.loads(ci.files[manifest])["env"] == "preview"
+
+
+@pytest.mark.parametrize(
+    "style, schema",
+    [
+        ("domain-catalogs", "dev_sales.pr42__silver"),
+        ("layer-catalogs", "dev_silver.pr42__sales"),
+        ("environment-catalogs", "dev.pr42__sales_silver"),
+    ],
+)
+def test_pull_request_preview_schemas_follow_the_naming_style(
+    tmp_path: Path, ci: FakeWorkspace, style: str, schema: str
+):
+    folder = tmp_path / "shop"
+    runner.invoke(app, ["init", str(folder), "--host", HOST, "--naming-style", style])
+
+    result = nstx(folder, "preview", "--pr", "42", "--json")
+
+    assert schema in json.loads(result.stdout)["result"]["schemas"]
+
+
+@pytest.mark.parametrize("style", ["domain-catalogs", "layer-catalogs", "environment-catalogs"])
+def test_a_pull_request_preview_shares_no_schema_pipeline_or_folder_with_a_person_or_dev(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, style: str
+):
+    folder = tmp_path / "shop"
+    runner.invoke(app, ["init", str(folder), "--host", HOST, "--naming-style", style])
+    seen = {}
+    for user, args in ((CI, ["--pr", "1"]), ("u@acme.com", []), ("pr1@acme.com", [])):
+        fake = FakeWorkspace(user)
+        monkeypatch.setattr(cli, "DatabricksCli", lambda fake=fake: fake)
+        assert nstx(folder, "preview", *args).exit_code == 0
+        [package] = fake.packages
+        seen[user] = package
+    dev = seen[CI]["targets"]["dev"]["variables"]
+    dev_schemas = {
+        f"{dev[key.replace('schema_', 'catalog_')]}.{value}"
+        for key, value in dev.items()
+        if key.startswith("schema_")
+    }
+
+    targets = [package["targets"]["preview"] for package in seen.values()]
+    schemas = [set(_schema_names(target)) for target in targets]
+    pipelines = [{p["name"] for p in t["resources"]["pipelines"].values()} for t in targets]
+    roots = [target["workspace"]["root_path"] for target in targets]
+    pull_request, *people = range(3)
+    for person in people:
+        assert not schemas[pull_request] & schemas[person]
+        assert not pipelines[pull_request] & pipelines[person]
+        assert roots[pull_request] != roots[person]
+    assert not schemas[pull_request] & dev_schemas
+
+
+def test_a_pull_request_preview_never_deploys_into_another_projects_and_names_its_removal(
+    project: Path, ci: FakeWorkspace
+):
+    ci.schemas["dev_sales"] = {
+        "pr42__silver": {"nimblestax.project": "warehouse", "nimblestax.pull_request": "42"}
+    }
+
+    result = nstx(project, "preview", "--pr", "42", "--json")
+
+    assert result.exit_code == 2, result.output
+    [diagnostic] = json.loads(result.stdout)["diagnostics"]
+    assert diagnostic["rule"] == "NSTX920"
+    assert "for pull request 42" in diagnostic["message"]
+    assert "nstx preview down --pr 42" in diagnostic["fix"]
+    assert not [call for call in ci.calls if call[0] in ("deploy", "run")]
+
+
+def test_a_pull_request_preview_deploys_again_into_the_schemas_it_created(
+    project: Path, ci: FakeWorkspace
+):
+    ci.schemas["dev_sales"] = {
+        "pr42__silver": {"nimblestax.project": "shop", "nimblestax.pull_request": "42"}
+    }
+
+    result = nstx(project, "preview", "--pr", "42")
+
+    assert result.exit_code == 0, result.output
+    # Nobody is asked who is signed in: the prefix comes from `--pr` alone.
+    assert not [call for call in ci.calls if call[0] == "current_user"]
+
+
+def test_preview_down_with_pr_removes_that_pull_requests_preview_and_its_manifest(
+    project: Path, ci: FakeWorkspace
+):
+    nstx(project, "preview", "--pr", "42")
+    ci.state = [("dev_sales", "pr42__silver"), ("dev_sales", "pr42__gold")]
+
+    result = nstx(project, "preview", "down", "--pr", "42", "--json")
+
+    assert result.exit_code == 0, result.output
+    assert ("destroy", "preview") in ci.calls
+    assert ci.files == {}
+
+
+@pytest.mark.parametrize(
+    "outside",
+    [
+        ("dev_sales", "silver"),
+        ("dev_sales", "u_bijil__silver"),
+        ("dev_sales", "pr4__silver"),
+        ("dev_sales", "pr420__silver"),
+        ("prod_sales", "pr42__silver"),
+    ],
+)
+def test_preview_down_with_pr_refuses_anything_outside_that_pull_requests_schemas_in_dev(
+    project: Path, ci: FakeWorkspace, outside: tuple[str, str]
+):
+    ci.state = [("dev_sales", "pr42__silver"), outside]
+
+    result = nstx(project, "preview", "down", "--pr", "42", "--json")
+
+    assert result.exit_code == 2, result.output
+    [diagnostic] = json.loads(result.stdout)["diagnostics"]
+    assert diagnostic["rule"] == "NSTX922"
+    assert ".".join(outside) in diagnostic["message"]
+    assert ("destroy", "preview") not in ci.calls
+
+
+def test_a_pull_request_number_starts_at_one(project: Path, ci: FakeWorkspace):
+    result = nstx(project, "preview", "--pr", "0", "--json")
+
+    assert result.exit_code == 2, result.output
+    assert ci.calls == []
+
+
+def test_databricks_accepts_a_pull_request_preview_target_apart_from_dev_and_people(
+    tmp_path: Path, stub_workspace: str
+):
+    folder = tmp_path / "shop"
+    assert runner.invoke(app, ["init", str(folder), "--host", stub_workspace]).exit_code == 0
+    package = compiler.write_package(load(folder), bundle.pull_request(42))
+
+    preview = validated(package, stub_workspace, "preview", tmp_path)
+
+    pipelines = preview["resources"]["pipelines"]
+    assert pipelines["sales_gold"]["name"] == "pr42__shop_sales_gold"
+    assert pipelines["sales_gold"]["development"] is True
+    assert pipelines["sales_gold"]["configuration"]["schema_sales_silver"] == "pr42__silver"
+    [job] = preview["resources"]["jobs"].values()
+    assert job["name"] == "pr42__shop_refresh"
+    schema = preview["resources"]["schemas"]["sales_silver"]
+    assert schema["properties"] == {"nimblestax.project": "shop", "nimblestax.pull_request": "42"}
+    assert "nstx preview down --pr 42" in schema["comment"]
+    assert preview["workspace"]["root_path"].endswith("/.bundle/shop/pull-requests/42")
+
+
+def test_the_pull_request_workflow_previews_each_pull_request_as_dev_after_validating(
+    project: Path,
+):
+    workflow = project / ".github/workflows/nimblestax-pull-request.yaml"
+    jobs = yaml.safe_load(workflow.read_text())["jobs"]
+
+    preview = jobs["preview"]
+    assert preview["needs"] == "validate"
+    assert preview["environment"] == "dev"
+    runs = [step["run"] for step in preview["steps"] if "run" in step]
+    assert runs == [
+        'uvx --from "$NIMBLESTAX_SPEC" nstx preview --pr ${{ github.event.pull_request.number }}'
+    ]
+    # Two pushes to one pull request deploy one after the other, never into one bundle at once.
+    assert preview["concurrency"] == {
+        "group": "nimblestax-preview-${{ github.event.pull_request.number }}",
+        "cancel-in-progress": False,
+    }

@@ -11,17 +11,50 @@ from nimblestax.load.project import Project
 REFRESH_JOB = "refresh"
 PREVIEW_TARGET = PREVIEW
 
-# The label on every schema Nimblestax creates, naming the project that owns it.
+# The labels on every schema a preview creates, naming the project and whose preview it is.
 PROJECT_LABEL = "nimblestax.project"
 USER_LABEL = "nimblestax.user"
+PULL_REQUEST_LABEL = "nimblestax.pull_request"
 
 
 @dataclass(frozen=True)
 class Preview:
-    """Whose Preview Environment the bundle's `preview` target deploys, and its prefix."""
+    """Whose Preview Environment the bundle's `preview` target deploys.
+
+    `labels` mark its schemas as its own, beside the project's, and `folder` is where its bundle
+    state sits, under `~/.bundle/<project>/` of whoever deploys it.
+    """
 
     prefix: str
-    user: str
+    owner: str
+    labels: dict[str, str]
+    folder: str
+    remove: str
+
+
+def personal(user: str) -> Preview:
+    """A person's own preview, deployed from their laptop as themselves."""
+    return Preview(
+        names.personal_prefix(user),
+        user,
+        {USER_LABEL: user},
+        PREVIEW_TARGET,
+        "nstx preview down",
+    )
+
+
+def pull_request(number: int) -> Preview:
+    """A pull request's preview, deployed by CI as the Development Environment's identity.
+
+    Its folder name isn't an identifier, so no Environment's bundle state can share it.
+    """
+    return Preview(
+        names.pull_request_prefix(number),
+        f"pull request {number}",
+        {PULL_REQUEST_LABEL: str(number)},
+        f"pull-requests/{number}",
+        f"nstx preview down --pr {number}",
+    )
 
 # One retry survives a one-off blip. An error a retry can't fix, such as a bad row in append-only
 # bronze, then fails in about a minute instead of waiting through the default five retries.
@@ -104,9 +137,9 @@ def _preview_target(project: Project, preview: Preview, pipelines: dict) -> dict
         key: {
             "catalog_name": catalog,
             "name": schema,
-            "comment": f"A Preview Environment of {platform.name}, for {preview.user}. Nimblestax"
-            " created it, and `nstx preview down` removes it.",
-            "properties": {PROJECT_LABEL: platform.name, USER_LABEL: preview.user},
+            "comment": f"A Preview Environment of {platform.name}, for {preview.owner}. Nimblestax"
+            f" created it, and `{preview.remove}` removes it.",
+            "properties": {PROJECT_LABEL: platform.name, **preview.labels},
         }
         for key, (catalog, schema) in names.preview_schemas(platform, prefix).items()
     }
@@ -122,7 +155,7 @@ def _preview_target(project: Project, preview: Preview, pipelines: dict) -> dict
     return {
         "workspace": {
             "host": platform.hosts[platform.development_environment],
-            "root_path": f"~/.bundle/{platform.name}/{PREVIEW_TARGET}",
+            "root_path": f"~/.bundle/{platform.name}/{preview.folder}",
         },
         # A failed update isn't retried, and compute is kept for the next push. The bundle's own
         # development mode isn't used, because it renames everything its own way.

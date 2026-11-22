@@ -621,19 +621,36 @@ def preview(
             show_default=False,
         ),
     ] = None,
+    pull_request: Annotated[
+        int | None,
+        typer.Option(
+            "--pr",
+            min=1,
+            help="The pull request whose Preview Environment this is, in `pr<N>__` schemas. CI"
+            " passes it, signed in as the Development Environment's identity. Left out, the"
+            " preview is your own.",
+            show_default=False,
+        ),
+    ] = None,
     root: ProjectOption = Path("."),
 ) -> Outcome[Previewed | Removed]:
-    """Deploy your working tree to your own Preview Environment, and build every table."""
+    """Deploy your working tree to a Preview Environment, yours or a pull request's."""
     loaded = project.load(root)
+    whose = "your" if pull_request is None else f"pull request {pull_request}'s"
     if action == PreviewDown.down:
-        previews.down(loaded, DatabricksCli())
-        return Outcome("Removed your Preview Environment of this project.", Removed(removed=True))
-    schemas, warnings = previews.preview(loaded, DatabricksCli())
-    lines = [
-        "Deployed your working tree to your Preview Environment, in:",
-        *(f"  {schema}" for schema in schemas),
-        "Remove it with `nstx preview down` when you're done.",
-    ]
+        previews.down(loaded, DatabricksCli(), pull_request)
+        removed = f"Removed {whose} Preview Environment of this project."
+        return Outcome(removed, Removed(removed=True))
+    schemas, warnings = previews.preview(loaded, DatabricksCli(), pull_request)
+    if pull_request is None:
+        opening = "Deployed your working tree to your Preview Environment, in:"
+        closing = "Remove it with `nstx preview down` when you're done."
+    else:
+        opening = f"Deployed pull request {pull_request} to its Preview Environment, in:"
+        closing = (
+            f"`nstx preview down --pr {pull_request}` removes it when the pull request closes."
+        )
+    lines = [opening, *(f"  {schema}" for schema in schemas), closing]
     return Outcome("\n".join(lines), Previewed(schemas=schemas), warnings)
 
 
