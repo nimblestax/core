@@ -32,6 +32,19 @@ class FakeWorkspace:
     def pipeline_errors(self, package: Path, target: str, since: datetime) -> list[str]:
         return []
 
+    # A successful deploy writes its Deployment Manifest, which this fake keeps nowhere.
+    def bundle_root(self, package: Path, target: str) -> str:
+        return f"/bundle/{target}"
+
+    def write_file(self, package: Path, target: str, path: str, content: str) -> None:
+        pass
+
+    def list_folder(self, package: Path, target: str, folder: str) -> list[str]:
+        return []
+
+    def delete_file(self, package: Path, target: str, path: str) -> None:
+        pass
+
     def _record(self, *call) -> None:
         self.calls.append(call)
         if call[0] == self.fail_on:

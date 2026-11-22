@@ -2,9 +2,12 @@
 
 from datetime import datetime
 from pathlib import Path
+from typing import NamedTuple
 
 from nimblestax.build import bundle, compiler
+from nimblestax.build import package as build_package
 from nimblestax.check import rules
+from nimblestax.deploy import manifest
 from nimblestax.deploy.databricks import Workspace, WorkspaceError
 from nimblestax.diagnostics import (
     DOCS_ROOT,
@@ -23,15 +26,32 @@ class InvalidProject(Failure):
     pass
 
 
-def deploy(project: Project, env: str, workspace: Workspace) -> None:
-    problems = errors(rules.check(project))
-    if problems:
-        raise InvalidProject(problems)
-    ship(compiler.write_package(project), env, workspace)
+class Deployment(NamedTuple):
+    manifest: dict
+    warnings: list[Diagnostic]
 
 
-def ship(package: Path, target: str, workspace: Workspace) -> None:
-    """Deploy a written package to one target, then refresh its tables."""
+def deploy(
+    project: Project, env: str, workspace: Workspace, package: Path | None = None
+) -> Deployment:
+    """Deploy `package`, or a package built now from the project, then refresh it.
+
+    A given package is deployed as it is and never rebuilt: CI validated the project before
+    building it.
+    Only a deploy that succeeded, refresh included, writes the Deployment Manifest.
+    """
+    if package is None:
+        problems = errors(rules.check(project))
+        if problems:
+            raise InvalidProject(problems)
+        package = compiler.write_package(project)
+    return ship(package, env, workspace)
+
+
+def ship(package: Path, target: str, workspace: Workspace) -> Deployment:
+    """Deploy a written package to one target, refresh its tables, then write its Deployment
+    Manifest next to the deployed bundle. A refresh that fails writes none."""
+    record = build_package.read_record(package)
     workspace.deploy_bundle(package, target)
     started = datetime.now().astimezone()
     try:
@@ -45,6 +65,8 @@ def ship(package: Path, target: str, workspace: Workspace) -> None:
             raise failure
         found = [refresh_failure(message) for message in messages]
         raise Failure(found, USAGE_OR_ENVIRONMENT) from failure
+    written = manifest.manifest(target, record, started)
+    return Deployment(written, manifest.store(workspace, package, target, written))
 
 
 def _unexplained(failure: WorkspaceError, lookup: WorkspaceError) -> WorkspaceError:

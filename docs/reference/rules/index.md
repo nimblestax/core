@@ -89,6 +89,9 @@ A Rule's ID is `NSTX` plus three digits, and its first digit is its series. Each
 | [`NSTX914`](nstx914.md) | `skills-folder-ignored` | `nstx init` wrote Nimblestax Skills into a folder Git ignores, such as `.claude/`. |
 | [`NSTX915`](nstx915.md) | `skill-edited` | `nstx skills update` found a Nimblestax Skill edited since Nimblestax wrote it. |
 | [`NSTX916`](nstx916.md) | `unknown-example` | `nstx init --example` names an example Nimblestax doesn't ship. |
+| [`NSTX917`](nstx917.md) | `not-a-build-package` | `nstx deploy --package` names a folder that isn't a Build Package. |
+| [`NSTX918`](nstx918.md) | `build-package-changed` | A file in the Build Package `nstx deploy --package` was given differs from what was built. |
+| [`NSTX919`](nstx919.md) | `manifest-copies-not-removed` | A deploy succeeded, but old copies of the Deployment Manifest couldn't be removed. |
 | [`NSTX920`](nstx920.md) | `preview-schema-taken` | `nstx preview` would deploy into a schema that another project, another person, or someone by hand already created. |
 | [`NSTX921`](nstx921.md) | `example-has-no-preview` | `nstx preview` was run in an example project, such as Kettle. |
 | [`NSTX922`](nstx922.md) | `preview-down-outside-fence` | `nstx preview down` found a schema in the preview's bundle state outside your `u_<user>__` schemas, or outside the Development Environment's catalogs. |

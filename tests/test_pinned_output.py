@@ -25,10 +25,12 @@ def project(tmp_path: Path) -> Path:
 
 
 def files_under(folder: Path) -> dict[str, bytes]:
+    """Every generated file. The package's checksum record is left out: it names the installed
+    Nimblestax, which changes with each release, while generated code must not."""
     return {
         path.relative_to(folder).as_posix(): path.read_bytes()
         for path in sorted(folder.rglob("*"))
-        if path.is_file()
+        if path.is_file() and path.name != "nimblestax.package.json"
     }
 
 

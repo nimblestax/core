@@ -1,6 +1,6 @@
 ---
 title: nstx deploy
-description: Deploy to an Environment and refresh its tables.
+description: Deploy to an Environment, refresh its tables, and write its Deployment Manifest.
 generated: true
 nimblestax_version: 0.1.0
 ---
@@ -14,6 +14,7 @@ $ nstx deploy [OPTIONS]
 | Option | Takes | Default | Meaning |
 | --- | --- | --- | --- |
 | `--env` | text |  | The Environment to deploy. Required: a deploy never uses the default Environment. |
+| `--package` | path |  | The Build Package to deploy, as `nstx compile` wrote it. It is deployed as it is, never rebuilt. Left out, the project is validated and built first. |
 | `--project` | path | `.` | The project folder. |
 | `--json` | Nothing |  | Print one JSON envelope. |
 
@@ -24,6 +25,8 @@ With `--json`, it prints the [envelope](../json-output.md) with `schema` set to 
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `env` | string | The Environment deployed and refreshed. |
+| `commit` | string or null | The commit the Build Package was built from, or `null` if it was built outside Git. |
+| `package_checksum` | string | The Build Package's checksum, as its Deployment Manifest records it. |
 
 ## Exit codes
 

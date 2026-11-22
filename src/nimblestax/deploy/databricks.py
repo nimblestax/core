@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 from collections import deque
 from datetime import UTC, datetime, timedelta
 from functools import cached_property
@@ -34,6 +35,20 @@ class Workspace(Protocol):
     def pipeline_errors(self, package: Path, target: str, since: datetime) -> list[str]:
         """The errors of each pipeline's newest update that failed since `since`."""
         ...
+
+    def bundle_root(self, package: Path, target: str) -> str:
+        """The workspace folder the bundle deploys into for `target`."""
+        ...
+
+    def write_file(self, package: Path, target: str, path: str, content: str) -> None:
+        """Write a file in `target`'s workspace, making its folder and replacing what's there."""
+        ...
+
+    def list_folder(self, package: Path, target: str, folder: str) -> list[str]:
+        """The paths of the files in a folder of `target`'s workspace."""
+        ...
+
+    def delete_file(self, package: Path, target: str, path: str) -> None: ...
 
 
 class DatabricksCli:
@@ -93,6 +108,31 @@ class DatabricksCli:
             for granted in assignment.get("privileges") or []
         }
 
+    def bundle_root(self, package: Path, target: str) -> str:
+        validated = self._json(package, "bundle", "validate", "--target", target, "-o", "json")
+        return validated["workspace"]["root_path"]
+
+    def write_file(self, package: Path, target: str, path: str, content: str) -> None:
+        folder = path.rsplit("/", 1)[0]
+        self._call(package, "workspace", "mkdirs", folder, "--target", target)
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as local:
+            local.write(content)
+        try:
+            self._call(
+                package,
+                *("workspace", "import", path, "--file", local.name, "--format", "AUTO"),
+                *("--overwrite", "--target", target),
+            )
+        finally:
+            os.unlink(local.name)
+
+    def list_folder(self, package: Path, target: str, folder: str) -> list[str]:
+        listed = self._json(package, "workspace", "list", folder, "--target", target, "-o", "json")
+        return [item["path"] for item in listed or [] if item.get("object_type") == "FILE"]
+
+    def delete_file(self, package: Path, target: str, path: str) -> None:
+        self._call(package, "workspace", "delete", path, "--target", target)
+
     def catalogs(self, host: str) -> set[str]:
         listed = self._json(None, "catalogs", "list", "--output", "json", host=host)
         return {catalog["name"] for catalog in listed}
@@ -118,6 +158,16 @@ class DatabricksCli:
     def _json(self, package: Path | None, *arguments: str, host: str | None = None) -> Any:
         """Run from a bundle `package`, which names each target's workspace, or with no package
         against `host`, whatever workspace the shell points at."""
+        printed = self._call(package, *arguments, host=host)
+        try:
+            return json.loads(printed)
+        except json.JSONDecodeError as failure:
+            raise WorkspaceError(
+                f"databricks {' '.join(arguments)} didn't print JSON."
+            ) from failure
+
+    def _call(self, package: Path | None, *arguments: str, host: str | None = None) -> str:
+        """Run a command and return what it printed, as `_json` does without parsing it."""
         command = [self._executable, *arguments]
         env = {**os.environ, "DATABRICKS_HOST": host} if host else None
         # Its log goes to the stderr this process was started with, so stdout stays Nimblestax's.
@@ -125,12 +175,7 @@ class DatabricksCli:
             printed = cli.stdout.read() if cli.stdout else ""
         if cli.returncode:
             raise WorkspaceError(f"databricks {' '.join(arguments)} failed.")
-        try:
-            return json.loads(printed)
-        except json.JSONDecodeError as failure:
-            raise WorkspaceError(
-                f"databricks {' '.join(arguments)} didn't print JSON."
-            ) from failure
+        return printed
 
 
 def _start(command: list[str], package: Path | None, **streams: Any) -> subprocess.Popen[str]:

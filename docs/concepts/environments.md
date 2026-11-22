@@ -44,7 +44,7 @@ An environment's name is what appears in its catalogs, so under `domain-catalogs
 
 ## Stages
 
-Any environment without a role is a stage, such as `test`, `sit` or `uat`. Add as many as you need. Each one gets its own catalogs, its own settings in the build package and its own Job, and `nstx deploy --env sit` deploys to it. Nimblestax never needs to know their order: your CI runs them in the order you choose.
+Any environment without a role is a stage, such as `test`, `sit` or `uat`. Add as many as you need. Each one gets its own catalogs, its own settings in the [build package](build-packages.md) and its own Job, and `nstx deploy --env sit` deploys to it. Nimblestax never needs to know their order: your CI runs them in the order you choose.
 
 ## One shared workspace
 

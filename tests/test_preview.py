@@ -21,6 +21,7 @@ runner = CliRunner()
 
 HOST = "https://kettle.cloud.databricks.com"
 ME = "bijil@nimblestax.com"
+ROOT = f"/Workspace/Users/{ME}/.bundle/shop/preview"
 
 
 class FakeWorkspace:
@@ -34,6 +35,8 @@ class FakeWorkspace:
         # The schemas the preview's bundle state holds, as (catalog, schema).
         self.state: list[tuple[str, str]] = []
         self.packages: list[dict] = []
+        # The workspace's files, by path.
+        self.files: dict[str, str] = {}
 
     def current_user(self, host: str) -> str:
         self.calls.append(("current_user", host))
@@ -59,6 +62,22 @@ class FakeWorkspace:
 
     def destroy_bundle(self, package: Path, target: str) -> None:
         self.calls.append(("destroy", target))
+        # Destroying a bundle removes its root folder, with everything in it.
+        root = self.bundle_root(package, target)
+        self.files = {path: text for path, text in self.files.items() if not path.startswith(root)}
+
+    def bundle_root(self, package: Path, target: str) -> str:
+        name = yaml.safe_load((package / "databricks.yaml").read_text())["bundle"]["name"]
+        return f"/Workspace/Users/{self.user}/.bundle/{name}/{target}"
+
+    def write_file(self, package: Path, target: str, path: str, content: str) -> None:
+        self.files[path] = content
+
+    def list_folder(self, package: Path, target: str, folder: str) -> list[str]:
+        return [path for path in self.files if path.rsplit("/", 1)[0] == folder]
+
+    def delete_file(self, package: Path, target: str, path: str) -> None:
+        del self.files[path]
 
 
 def nstx(project: Path, *args: str):
@@ -365,6 +384,29 @@ def test_a_preview_ends_by_naming_preview_down(project: Path, workspace: FakeWor
     )
 
 
+def test_a_preview_writes_its_own_manifest_in_its_bundle_folder_and_down_removes_it(
+    project: Path, workspace: FakeWorkspace
+):
+    result = nstx(project, "preview")
+
+    assert result.exit_code == 0, result.output
+    folder = f"/Workspace/Users/{ME}/.bundle/shop/preview/nimblestax"
+    current = json.loads(workspace.files[f"{folder}/manifest.json"])
+    assert current["env"] == "preview"
+    assert "sales.gold.fct_orders" in current["tables"]
+    record = json.loads((project / "build/nimblestax.package.json").read_text())
+    assert current["package_checksum"] == record["checksum"]
+    [copy] = [path for path in workspace.files if path.startswith(f"{folder}/manifests/")]
+    assert json.loads(workspace.files[copy]) == current
+    # Nothing is written outside the person's own preview folder.
+    assert all(path.startswith(folder) for path in workspace.files)
+
+    result = nstx(project, "preview", "down")
+
+    assert result.exit_code == 0, result.output
+    assert workspace.files == {}
+
+
 @pytest.mark.parametrize(
     "outside",
     [
@@ -406,6 +448,8 @@ def fake_databricks(folder: Path, user: str, summary: dict) -> Path:
         "current-user me": {"userName": user},
         "schemas list": [{"name": "silver", "properties": {}}],
         "bundle summary": summary,
+        "bundle validate": {"workspace": {"root_path": ROOT}},
+        "workspace list": [],
     }
     cases = "".join(
         f"  \"{command}\") echo '{json.dumps(answer)}' ;;\n" for command, answer in answers.items()
@@ -417,6 +461,7 @@ def fake_databricks(folder: Path, user: str, summary: dict) -> Path:
         f'  "--version ") echo "Databricks CLI v{pinned_cli.MINIMUM}" ;;\n'
         f"{cases}"
         '  "bundle deploy"|"bundle run"|"bundle destroy") ;;\n'
+        '  "workspace mkdirs"|"workspace import") ;;\n'
         "  *) exit 1 ;;\n"
         "esac\n"
     )
@@ -449,10 +494,16 @@ def test_the_databricks_cli_deploys_and_removes_the_preview_target_as_the_signed
     calls = (tmp_path / "calls").read_text().splitlines()
     assert f"{HOST} current-user me --output json" in calls
     assert f"{HOST} schemas list dev_sales --output json" in calls
+    # The manifest goes in the preview's own bundle folder, which the destroy removes.
+    imported = [call.split(" ")[3] for call in calls if " workspace import " in call]
+    assert len(imported) == 2
+    assert re.fullmatch(rf"{ROOT}/nimblestax/manifests/\d{{8}}T\d{{6}}Z-.+\.json", imported[0])
+    assert imported[1] == f"{ROOT}/nimblestax/manifest.json"
     ran = [call.split(" ", 1)[1] for call in calls if " bundle " in f" {call.split(' ', 1)[1]}"]
     assert ran == [
         "bundle deploy --target preview",
         "bundle run --target preview refresh",
+        "bundle validate --target preview -o json",
         "bundle summary --target preview -o json",
         "bundle destroy --target preview --auto-approve",
     ]
