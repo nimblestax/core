@@ -685,8 +685,9 @@ def test(
         typer.Option(
             "--model",
             help="Run only this Gold Model's Tests: its name, such as `fct_orders`, or its"
-            " Logical Name, such as `sales.gold.fct_orders`. Give it more than once for more"
-            " models. Left out, every Gold Model's Tests run.",
+            " Logical Name, such as `sales.gold.fct_orders`. List several separated by commas,"
+            " such as `fct_orders,dim_date`, or give it more than once. Left out, every Gold"
+            " Model's Tests run.",
             show_default=False,
         ),
     ] = None,

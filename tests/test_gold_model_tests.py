@@ -609,3 +609,16 @@ def test_a_name_two_domains_share_exits_2_asking_for_the_logical_name(
     [found] = json.loads(result.stdout)["diagnostics"]
     assert found["rule"] == "NSTX926"
     assert "finance.gold.fct_orders" in found["fix"] and "sales.gold.fct_orders" in found["fix"]
+
+
+@pytest.mark.parametrize("given", ["fct_orders,dim_date", "fct_orders, sales.gold.dim_date"])
+def test_model_takes_a_comma_separated_list(project: Path, workspace: FakeWorkspace, given: str):
+    with_tests(project, "  - unique: [order_id]\n")
+    with_tests(project, "  - row_count: {}\n", DIM_DATE)
+    workspace.measures[PREVIEW_FCT_ORDERS] = ["0", "[]"]
+    workspace.measures[PREVIEW_DIM_DATE] = ["5"]
+
+    result = nstx(project, "test", "--model", given)
+
+    assert result.exit_code == 0, result.output
+    assert queried_tables(workspace) == {PREVIEW_FCT_ORDERS, PREVIEW_DIM_DATE}

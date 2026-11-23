@@ -112,7 +112,10 @@ _SAYING = threading.Lock()
 
 def select(project: Project, names: Sequence[str]) -> list[Model]:
     """The Gold Models `names` pick, in the project's order. Each name is a Model's name, or its
-    Logical Name when two Domains have a Model of that name. No names picks every Model."""
+    Logical Name when two Domains have a Model of that name, and one value may list several,
+    separated by commas. No names picks every Model."""
+    # A name is made of identifiers, so it never holds a comma.
+    names = [part.strip() for given in names for part in given.split(",") if part.strip()]
     if not names:
         return list(project.models)
     picked: set[str] = set()
