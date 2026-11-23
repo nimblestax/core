@@ -1,11 +1,22 @@
 import base64
 import json
+import os
 import threading
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlparse
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _outside_any_git_hook(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Git sets GIT_DIR, GIT_INDEX_FILE and friends while it runs a hook, such as the pre-commit
+    check. Left in place, a test's own git commands act on this repo instead of its throwaway one:
+    they commit here, write into the commit's index, or mark this repo bare."""
+    for name in list(os.environ):
+        if name.startswith("GIT_"):
+            monkeypatch.delenv(name)
 
 
 class _Workspace(BaseHTTPRequestHandler):
