@@ -33,7 +33,7 @@ Every gold model has an `owner`. A gold model without one fails `nstx validate` 
 | `row_count: {min: <n>, max: <n>}` | The table has at least `min` rows and at most `max`. `min` is 1 when you leave it out, and `max` has no limit, so `row_count: {}` checks the table isn't empty. |
 | `references: {column: <column>, to: <table>}` | Every value of `column` is in the table `to`, a logical name such as `sales.silver.regions`. Its column has the same name unless you give `key`. A NULL is skipped. |
 
-A test fails with [`NSTX401`](../reference/rules/nstx401.md), which names the test and the table and shows up to five values that broke it. A test the warehouse can't run, such as one naming a column the table doesn't have, fails with [`NSTX402`](../reference/rules/nstx402.md). The other tests still run.
+`nstx test` lists each test on stderr as it runs, with its result, so `--json` output on stdout stays one envelope. A test fails with [`NSTX401`](../reference/rules/nstx401.md), which names the test and the table and shows up to five values that broke it. A test the warehouse can't run, such as one naming a column the table doesn't have, fails with [`NSTX402`](../reference/rules/nstx402.md). The other tests still run.
 
 ## Where tests run
 
@@ -45,6 +45,9 @@ nstx test
 ```
 
 ```text
+Running 2 Tests on your Preview Environment (u_priya__), on warehouse 4b9b953939869799.
+  [1/2] sales.gold.fct_orders: unique(order_id) ... failed
+  [2/2] sales.gold.fct_orders: row_count(min: 1) ... passed
 NSTX401 domains/sales/models/gold/fct_orders.yaml: `unique(order_id)` failed on `sales.gold.fct_orders`: 2 values appear in more than one row, such as {"order_id":1001}, {"order_id":1002}.
   Fix: Fix the model's SQL or the data it reads, or correct the Test, then run `nstx preview` and `nstx test` again.
 ```

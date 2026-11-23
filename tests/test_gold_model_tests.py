@@ -2,7 +2,11 @@
 tables."""
 
 import json
+import sys
+from collections.abc import Callable
+from io import BytesIO
 from pathlib import Path
+from typing import cast
 
 import pytest
 import yaml
@@ -33,6 +37,8 @@ class FakeWorkspace:
         # What each table's Test queries measure, by the real table name the query reads.
         self.measures: dict[str, list | QueryFailed] = {}
         self.queries: list[tuple[str, str, str]] = []
+        # Called as each query starts, so a test can see what was said before it.
+        self.on_query: Callable[[], None] = lambda: None
 
     def current_user(self, host: str) -> str:
         return self.user
@@ -51,6 +57,7 @@ class FakeWorkspace:
         return self.warehouse_list
 
     def query(self, host: str, warehouse: str, statement: str) -> list[list]:
+        self.on_query()
         self.queries.append((host, warehouse, statement))
         for table, measured in self.measures.items():
             if f" {table}" in statement:
@@ -395,3 +402,47 @@ def test_a_statement_with_no_rows_returns_none(
     stub_warehouse.answers = [{"statement_id": "s1", "status": {"state": "SUCCEEDED"}}]
 
     assert DatabricksCli().query(stub_workspace, WAREHOUSE, "SELECT 1 WHERE false") == []
+
+
+def test_each_test_is_reported_on_stderr_as_it_runs_leaving_stdout_one_envelope(
+    project: Path, workspace: FakeWorkspace
+):
+    with_tests(project, "  - unique: [order_id]\n")
+    with_tests(project, "  - row_count: {}\n", "domains/sales/models/gold/dim_date.yaml")
+    workspace.measures[PREVIEW_FCT_ORDERS] = ["0", "[]"]
+    workspace.measures["dev_sales.u_bijil__gold.dim_date"] = ["0"]
+
+    result = nstx(project, "test", "--json")
+
+    assert result.exit_code == 1, result.output
+    assert json.loads(result.stdout)["ok"] is False
+    assert result.stderr.splitlines() == [
+        f"Running 2 Tests on your Preview Environment (u_bijil__), on warehouse {WAREHOUSE}.",
+        "  [1/2] sales.gold.dim_date: row_count(min: 1) ... failed",
+        "  [2/2] sales.gold.fct_orders: unique(order_id) ... passed",
+    ]
+
+
+def test_each_test_is_announced_before_its_query_runs(project: Path, workspace: FakeWorkspace):
+    with_tests(project, "  - unique: [order_id]\n")
+    workspace.measures[PREVIEW_FCT_ORDERS] = ["0", "[]"]
+    seen: list[str] = []
+    # What CliRunner has caught on stderr when the query starts.
+    workspace.on_query = lambda: seen.append(cast(BytesIO, sys.stderr.buffer).getvalue().decode())
+
+    result = nstx(project, "test")
+
+    assert result.exit_code == 0, result.output
+    assert seen and seen[0].endswith("sales.gold.fct_orders: unique(order_id) ... ")
+
+
+def test_a_test_that_cant_run_is_reported_as_such_as_it_runs(
+    project: Path, workspace: FakeWorkspace
+):
+    with_tests(project, "  - unique: [order_no]\n")
+    workspace.measures[PREVIEW_FCT_ORDERS] = QueryFailed("[UNRESOLVED_COLUMN] order_no")
+
+    result = nstx(project, "test")
+
+    assert "  [1/1] sales.gold.fct_orders: unique(order_no) ... couldn't run" in result.stderr
+    assert result.stderr.startswith("Running 1 Test on your Preview Environment")

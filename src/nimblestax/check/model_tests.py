@@ -6,6 +6,7 @@ and no Test type fails only because it ran on a preview.
 """
 
 import json
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -70,15 +71,41 @@ def run(project: Project, workspace: TestWorkspace, pull_request: int | None = N
     _require_deployed(project, workspace, target, pull_request)
     warehouse = _warehouse(project, workspace, host)
     schemas = names.preview_schemas(platform, target.prefix)
-    ran = [
-        _run(workspace, host, warehouse, project, model, test, schemas)
-        for model in project.models
-        for test in model.tests
-    ]
+    tests = [(model, test) for model in project.models for test in model.tests]
+    if tests:
+        whose = "your" if pull_request is None else f"pull request {pull_request}'s"
+        counted = "1 Test" if len(tests) == 1 else f"{len(tests)} Tests"
+        _say(
+            f"Running {counted} on {whose} Preview Environment ({target.prefix}), on warehouse"
+            f" {warehouse}.\n"
+        )
+    ran = []
+    for number, (model, test) in enumerate(tests, 1):
+        # Said before the query, because a warehouse that's starting up can take minutes.
+        _say(f"  [{number}/{len(tests)}] {_dotted(model)}: {test.name} ... ")
+        found = _run(workspace, host, warehouse, project, model, test, schemas)
+        _say(f"{_outcome(found)}\n")
+        ran.append(found)
     failed = [_failed(found) for found in ran if found.failure or found.error]
     if failed:
         raise Failure(failed)
     return ran
+
+
+def _say(text: str) -> None:
+    """Progress goes to stderr, so stdout holds only what the command prints, such as `--json`."""
+    sys.stderr.write(text)
+    sys.stderr.flush()
+
+
+def _dotted(model: Model) -> str:
+    return f"{model.domain}.{model.layer}.{model.name}".lower()
+
+
+def _outcome(ran: Ran) -> str:
+    if ran.error:
+        return "couldn't run"
+    return "failed" if ran.failure else "passed"
 
 
 def _require_deployed(

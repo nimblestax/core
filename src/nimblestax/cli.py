@@ -691,9 +691,9 @@ def test(
     ]
     if not runs:
         return Outcome("No gold model has Tests, so none ran.", Tested(tests=runs))
-    passed = "1 Test passed:" if len(runs) == 1 else f"{len(runs)} Tests passed:"
-    lines = [passed, *(f"  {r.model}: {r.test}" for r in runs)]
-    return Outcome("\n".join(lines), Tested(tests=runs))
+    # Each Test was listed on stderr as it ran, so the summary is one line.
+    passed = "1 Test passed." if len(runs) == 1 else f"All {len(runs)} Tests passed."
+    return Outcome(passed, Tested(tests=runs))
 
 
 @app.command(
