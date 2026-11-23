@@ -43,7 +43,6 @@ A Rule's ID is `NSTX` plus three digits, and its first digit is its series. Each
 | [`NSTX131`](nstx131.md) | `two-environments-with-one-role` | More than one Environment in `nimblestax.platform.yaml` sets the same `role`. |
 | [`NSTX132`](nstx132.md) | `environment-name-not-an-identifier` | An Environment's name in `nimblestax.platform.yaml` isn't an identifier: letters, digits and underscores, starting with a letter or underscore. |
 | [`NSTX133`](nstx133.md) | `reserved-environment-name` | An Environment is named `preview`. |
-| [`NSTX134`](nstx134.md) | `model-without-owner` | A Gold Model has no `owner`. |
 
 ## `NSTX2xx` SQL and reads between tables
 

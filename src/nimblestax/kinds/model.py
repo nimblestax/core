@@ -5,8 +5,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag, model_validator
-from pydantic_core import PydanticCustomError
+from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag
 
 from nimblestax.diagnostics import Diagnostic, error
 from nimblestax.kinds.base import (
@@ -127,29 +126,16 @@ class ModelV1(InDomain):
     sql: str = Field(
         pattern=r"^[^/\\]+\.sql$", description="The SQL file, in the same folder as this file."
     )
-    owner: str = Field(
+    owner: str | None = Field(
+        default=None,
         min_length=1,
-        description="Who answers for this table: a team or a person, such as `sales-analytics`.",
+        description="Who answers for this table: a team or a person, such as `sales-analytics`."
+        " Nothing checks or uses it yet, and it doesn't set the table's owner in Unity Catalog.",
     )
     tests: list[Test] = Field(
         default=[],
         description="The Tests `nstx test` runs on this model's table in a Preview Environment.",
     )
-
-    @model_validator(mode="before")
-    @classmethod
-    def _has_owner(cls, data: Any) -> Any:
-        # Its own rule rather than a missing field, so the fix can say what an owner is.
-        if isinstance(data, dict) and "owner" not in data:
-            raise PydanticCustomError(
-                "NSTX134",
-                "This Gold Model has no `owner`, and every Gold Model has one.",
-                {
-                    "fix": "Add `owner: <team>` naming who answers for this table, such as"
-                    " `owner: sales-analytics`."
-                },
-            )
-        return data
 
     @property
     def layer(self) -> str:

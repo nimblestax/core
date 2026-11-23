@@ -285,7 +285,6 @@ REGISTERED_RULES = {
     "NSTX131": "two-environments-with-one-role",
     "NSTX132": "environment-name-not-an-identifier",
     "NSTX133": "reserved-environment-name",
-    "NSTX134": "model-without-owner",
     "NSTX201": "unresolved-logical-name",
     "NSTX202": "duplicate-table",
     "NSTX203": "unparseable-sql",
@@ -454,7 +453,6 @@ INVALID_PROJECTS = {
     "NSTX133": replacing(
         PLATFORM, "    role: development\n", "    role: development\n  preview: {}\n"
     ),
-    "NSTX134": replacing(f"{MODEL}.yaml", "owner: sales-analytics\n", ""),
     "NSTX201": lambda project: (project / f"{MODEL}.sql").write_text("SELECT * FROM a.b.c"),
     "NSTX202": seed("code: STRING", "code\nAU\n", name="orders"),
     "NSTX203": lambda project: (project / f"{MODEL}.sql").write_text("SELECT FROM WHERE"),
@@ -491,8 +489,8 @@ INVALID_PROJECTS = {
     ),
     "NSTX213": replacing(
         f"{MODEL}.yaml",
-        "owner: sales-analytics\n",
-        "owner: sales-analytics\ntests:\n  - references: {column: id, to: sales.gold.nope}\n",
+        "sql: fct_orders.sql\n",
+        "sql: fct_orders.sql\ntests:\n  - references: {column: id, to: sales.gold.nope}\n",
     ),
 }
 

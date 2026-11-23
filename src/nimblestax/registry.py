@@ -594,23 +594,6 @@ RULES = {
         ),
         fix="Rename the Environment, such as to `staging`.",
     ),
-    "NSTX134": Rule(
-        "model-without-owner",
-        checks="A Gold Model has no `owner`.",
-        why="Every Gold Model has someone who answers for it: who to ask when a Test fails, or"
-        " before changing what it means. `owner` names that team or person beside the SQL, so"
-        " it's reviewed with the model and never goes stale in a separate list.",
-        example=Example(
-            {
-                "domains/sales/models/gold/fct_returns.yaml": "kind: model\nversion: 1\n"
-                "sql: fct_returns.sql\n",
-                "domains/sales/models/gold/fct_returns.sql": "SELECT order_id\n"
-                "FROM sales.silver.orders\n",
-            }
-        ),
-        fix="Add `owner` naming the team or person who answers for the table, such as"
-        " `owner: sales-analytics`.",
-    ),
     "NSTX201": Rule(
         "unresolved-logical-name",
         checks="SQL reads a table that isn't in the project.",

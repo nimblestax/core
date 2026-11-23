@@ -2,4 +2,3 @@
 kind: model
 version: 1
 sql: dim_date.sql
-owner: sales-analytics

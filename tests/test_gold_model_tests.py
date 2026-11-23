@@ -317,25 +317,24 @@ def test_a_test_that_cant_run_fails_with_the_warehouses_error_and_the_rest_still
     assert len(workspace.queries) == 2
 
 
-def test_a_gold_model_with_no_owner_fails_validation(project: Path):
+def test_owner_is_optional(project: Path):
     config = project / FCT_ORDERS
     config.write_text(
         "\n".join(line for line in config.read_text().splitlines() if "owner" not in line) + "\n"
     )
 
+    assert nstx(project, "validate").exit_code == 0
+
+
+def test_an_empty_owner_is_a_mistake(project: Path):
+    config = project / FCT_ORDERS
+    config.write_text(config.read_text() + 'owner: ""\n')
+
     result = nstx(project, "validate", "--json")
 
     assert result.exit_code == 1
     [found] = json.loads(result.stdout)["diagnostics"]
-    assert found["rule"] == "NSTX134"
-    assert found["file"] == FCT_ORDERS
-    assert "owner: " in found["fix"]
-
-
-def test_every_gold_model_nstx_init_writes_has_an_owner(project: Path):
-    assert nstx(project, "validate").exit_code == 0
-    for config in (project / "domains").rglob("models/**/*.yaml"):
-        assert "owner: " in config.read_text()
+    assert found["rule"] == "NSTX106"
 
 
 def test_an_example_has_no_preview_so_nstx_test_refuses_it(

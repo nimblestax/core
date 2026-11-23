@@ -3,7 +3,7 @@ title: Tests
 description: The rules a gold model's whole table is checked against, where they run, and how they differ from expectations.
 ---
 
-A test is a rule about a gold model's whole table, such as no two rows sharing an `order_id`. You declare a gold model's tests beside its SQL, with its `owner`, the team or person who answers for the table. `nstx test` runs them on a preview environment's tables.
+A test is a rule about a gold model's whole table, such as no two rows sharing an `order_id`. You declare a gold model's tests beside its SQL. `nstx test` runs them on a preview environment's tables.
 
 A test is not an [expectation](expectations.md). An expectation checks one row as it's written to silver, on every refresh. A test checks a whole table once it's built, before your change merges. [Tests and expectations](#tests-and-expectations) sets them side by side.
 
@@ -23,7 +23,7 @@ tests:
   - row_count: {}
 ```
 
-Every gold model has an `owner`. A gold model without one fails `nstx validate` with [`NSTX134`](../reference/rules/nstx134.md).
+`owner` names the team or person who answers for the table. It's optional, and nothing checks or uses it yet. It doesn't set the table's owner in Unity Catalog.
 
 ## What each test checks
 
