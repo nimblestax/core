@@ -1,9 +1,9 @@
 ---
 title: Preview environments
-description: How you try a change on all of a project's data, as yourself, in your own schemas beside dev, without touching dev's tables or pipelines.
+description: How a change is tried on all of a project's data, in its own schemas beside dev, before it merges, from your laptop or from CI on every pull request.
 ---
 
-A preview environment is a short-lived set of schemas in the development environment's catalogs, where a change is deployed and built before it merges. A personal preview is yours alone: `nstx preview` deploys your working tree, with your own login, into schemas named for you.
+A preview environment is a short-lived set of schemas in the development environment's catalogs, where a change is deployed and built before it merges. A personal preview is yours alone: `nstx preview` deploys your working tree, with your own login, into schemas named for you. A pull request preview is the same thing, run by CI on every pull request.
 
 When a team runs Kettle's project, Priya changes `fct_orders` and runs `nstx preview` from her laptop. Her change builds in `dev_sales.u_priya_sharma__gold.fct_orders`, while CI keeps deploying `dev_sales.gold.fct_orders` beside it. Kettle itself can't be previewed, because the copy you make with `nstx init --example kettle` already runs in catalogs of its own.
 
@@ -38,9 +38,36 @@ Nimblestax creates your schemas and labels each one with the project's name. It 
 
 A preview runs its pipelines in development mode: a failed update isn't retried, and compute is kept for your next run. It has no schedule. Your long-lived environments, such as dev and prod, stay in production mode.
 
+## Pull request previews
+
+Every pull request gets its own preview. CI runs `nstx preview --pr <N>`, signed in as the development environment's identity, and builds the pull request's code in `pr<N>__` schemas. When Priya opens pull request 42 with her change to `fct_orders`, its preview builds `dev_sales.pr42__gold.fct_orders`, and a reviewer can read those tables before approving.
+
+```console
+$ nstx preview --pr 42
+Deployed pull request 42 to its Preview Environment, in:
+  dev_finance.pr42__bronze
+  dev_finance.pr42__gold
+  dev_finance.pr42__silver
+  dev_sales.pr42__bronze
+  dev_sales.pr42__gold
+  dev_sales.pr42__silver
+  dev_shared.pr42__bronze
+  dev_shared.pr42__gold
+  dev_shared.pr42__silver
+`nstx preview down --pr 42` removes it when the pull request closes.
+```
+
+It builds every table, like a personal preview, and its schemas follow `pr<N>__<schema>` under every naming style: under `layer-catalogs`, `sales.silver.orders` is `dev_silver.pr42__sales.orders`. A `pr` prefix never starts like a `u_` one, so a pull request's preview never shares a schema with a person's or with dev's.
+
+The prefix comes from `--pr` alone. Nimblestax reads no CI variables, so the workflow passes the number. Its bundle state sits under the deploying identity's own `.bundle/<project>/pull-requests/<N>` folder, never in a person's folder, and each push to the pull request deploys into the same preview. The workflow `nstx init --ci github` writes runs it after `nstx validate`, one push at a time.
+
+The development environment's identity creates the preview's schemas, so it needs `CREATE SCHEMA` on the development environment's catalogs, beside what it already holds to deploy dev.
+
 ## Removing a preview
 
 `nstx preview down` removes what your preview of this project deployed, read from its bundle state, and its bundle folder with its deployment manifest. Your preview of another project, in the same catalogs, stays. It refuses anything outside your `u_` schemas in the development environment's catalogs, with [`NSTX922`](../reference/rules/nstx922.md). Nothing else removes a personal preview, so run it when you're done.
+
+`nstx preview down --pr <N>` removes a pull request's preview the same way, signed in as the identity that deployed it, and refuses anything outside its `pr<N>__` schemas.
 
 ## What your team grants
 

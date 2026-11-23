@@ -1,6 +1,6 @@
 ---
 title: nstx preview
-description: Deploy your working tree to your own Preview Environment, and build every table.
+description: Deploy your working tree to a Preview Environment, yours or a pull request's.
 generated: true
 nimblestax_version: 0.1.0
 ---
@@ -19,6 +19,7 @@ $ nstx preview [<action>] [OPTIONS]
 
 | Option | Takes | Default | Meaning |
 | --- | --- | --- | --- |
+| `--pr` | number |  | The pull request whose Preview Environment this is, in `pr<N>__` schemas. CI passes it, signed in as the Development Environment's identity. Left out, the preview is your own. |
 | `--project` | path | `.` | The project folder. |
 | `--json` | Nothing |  | Print one JSON envelope. |
 

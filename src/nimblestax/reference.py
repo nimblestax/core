@@ -251,7 +251,8 @@ def _takes(option: TyperOption) -> str:
     choices = getattr(option.type, "choices", None)
     if choices:
         return ", ".join(f"`{choice}`" for choice in choices)
-    return {"str": "text"}.get(option.type.name, option.type.name)
+    # A bounded number, such as `--pr`'s, reads as the number it is.
+    return {"str": "text", "int range": "number"}.get(option.type.name, option.type.name)
 
 
 def _default(option: TyperOption) -> str:
