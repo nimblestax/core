@@ -2,3 +2,10 @@
 kind: model
 version: 1
 sql: fct_revenue.sql
+owner: finance-analytics
+tests:
+  - unique: [date_day, region_code]
+  - references:
+      column: region_code
+      to: sales.silver.regions
+  - row_count: {}

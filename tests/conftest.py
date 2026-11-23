@@ -10,16 +10,31 @@ import pytest
 
 class _Workspace(BaseHTTPRequestHandler):
     """Just enough of a workspace for `databricks bundle validate` to run offline, plus workspace
-    files kept in `files`, by path, for the Deployment Manifest."""
+    files kept in `files`, by path, for the Deployment Manifest, and a SQL warehouse that answers
+    each statement with the next of `answers`, recording what it was sent in `statements`."""
 
     files: dict[str, str] = {}
+    warehouses: list[dict] = []
+    answers: list[dict] = []
+    statements: list[dict] = []
 
     def do_GET(self) -> None:
         query = parse_qs(urlparse(self.path).query)
         if "/scim/v2/Me" in self.path:
             self._reply(200, {"id": "1", "userName": "ci@example.com"})
         elif "/workspace/get-status" in self.path:
-            self._reply(200, {"object_type": "DIRECTORY", "object_id": 1})
+            path = query["path"][0]
+            if path in self.files:
+                self._reply(200, {"object_type": "FILE", "object_id": 2, "path": path})
+            elif path.endswith(".json"):  # A file nobody wrote. Any other path is a folder.
+                message = f"Path ({path}) doesn't exist."
+                self._reply(404, {"error_code": "RESOURCE_DOES_NOT_EXIST", "message": message})
+            else:
+                self._reply(200, {"object_type": "DIRECTORY", "object_id": 1})
+        elif self.path.startswith("/api/2.0/sql/warehouses"):
+            self._reply(200, {"warehouses": self.warehouses})
+        elif self.path.startswith("/api/2.0/sql/statements/"):
+            self._reply(200, self.answers.pop(0))
         elif "/workspace/list" in self.path:
             folder = query["path"][0]
             listed = [
@@ -38,6 +53,10 @@ class _Workspace(BaseHTTPRequestHandler):
             self.files[body["path"]] = base64.b64decode(body.get("content", "")).decode()
         elif self.path.endswith("/workspace/delete"):
             self.files.pop(body["path"], None)
+        elif self.path.endswith("/sql/statements"):
+            self.statements.append(body)
+            self._reply(200, self.answers.pop(0))
+            return
         self._reply(200, {})
 
     def _reply(self, status: int, body: dict) -> None:
@@ -53,6 +72,9 @@ class _Workspace(BaseHTTPRequestHandler):
 @pytest.fixture
 def stub_workspace() -> Iterator[str]:
     _Workspace.files = {}
+    _Workspace.warehouses = []
+    _Workspace.answers = []
+    _Workspace.statements = []
     server = HTTPServer(("127.0.0.1", 0), _Workspace)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{server.server_port}"
@@ -63,3 +85,10 @@ def stub_workspace() -> Iterator[str]:
 def stub_files() -> dict[str, str]:
     """The files written to `stub_workspace`, by path."""
     return _Workspace.files
+
+
+@pytest.fixture
+def stub_warehouse() -> type[_Workspace]:
+    """The SQL warehouse of `stub_workspace`: set its `warehouses` and `answers`, read its
+    `statements`."""
+    return _Workspace

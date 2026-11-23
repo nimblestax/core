@@ -18,12 +18,14 @@ from nimblestax.diagnostics import USAGE_OR_ENVIRONMENT, Diagnostic, Failure, er
 from nimblestax.load.project import Project
 
 
-class PreviewWorkspace(Workspace, Protocol):
-    """What a Preview Environment needs from the Databricks boundary, beyond a deploy."""
-
+class SignedIn(Protocol):
     def current_user(self, host: str) -> str:
         """The user name the person signed in with."""
         ...
+
+
+class PreviewWorkspace(Workspace, SignedIn, Protocol):
+    """What a Preview Environment needs from the Databricks boundary, beyond a deploy."""
 
     def schema_properties(self, host: str, catalog: str) -> dict[str, dict[str, str]]:
         """Each schema in a catalog, with its properties."""
@@ -50,11 +52,11 @@ def preview(
 
     Returns its schemas, as `catalog.schema`.
     """
-    _refuse_example(project)
+    refuse_example(project)
     problems = errors(rules.check(project))
     if problems:
         raise Failure(problems)
-    target = _whose(project, workspace, pull_request)
+    target = whose(project, workspace, pull_request)
     _refuse_taken(project, target, workspace)
     package = compiler.write_package(project, target)
     shipped = deploy.ship(package, bundle.PREVIEW_TARGET, workspace)
@@ -62,7 +64,7 @@ def preview(
     return Previewed(sorted(f"{c}.{s}" for c, s in schemas), shipped.warnings)
 
 
-def _refuse_example(project: Project) -> None:
+def refuse_example(project: Project) -> None:
     """An example already runs in catalogs of its own, so it has no preview."""
     if project.platform.name in scaffold.examples():
         found = error(
@@ -76,9 +78,7 @@ def _refuse_example(project: Project) -> None:
         raise Failure([found], USAGE_OR_ENVIRONMENT)
 
 
-def _whose(
-    project: Project, workspace: PreviewWorkspace, pull_request: int | None
-) -> bundle.Preview:
+def whose(project: Project, workspace: SignedIn, pull_request: int | None) -> bundle.Preview:
     """A pull request's preview comes from `--pr`, never from CI's environment, and a person's
     from who is signed in."""
     if pull_request is not None:
@@ -140,8 +140,8 @@ def _taken(schema: str, labels: dict[str, str]) -> Diagnostic:
 def down(project: Project, workspace: PreviewWorkspace, pull_request: int | None = None) -> None:
     """Destroy this project's Preview Environment for the signed-in person, or for
     `pull_request`, from its bundle state."""
-    _refuse_example(project)
-    target = _whose(project, workspace, pull_request)
+    refuse_example(project)
+    target = whose(project, workspace, pull_request)
     package = compiler.write_package(project, target)
     _fence(project, target, workspace.deployed_schemas(package, bundle.PREVIEW_TARGET))
     workspace.destroy_bundle(package, bundle.PREVIEW_TARGET)

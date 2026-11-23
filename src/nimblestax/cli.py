@@ -19,7 +19,7 @@ from typer.core import TyperGroup
 
 from nimblestax import names, output, scaffold, skills
 from nimblestax.build import compiler
-from nimblestax.check import platform_objects, rules
+from nimblestax.check import model_tests, platform_objects, rules
 from nimblestax.deploy import deploy as delivery
 from nimblestax.deploy import pinned_cli
 from nimblestax.deploy import preview as previews
@@ -652,6 +652,48 @@ def preview(
         )
     lines = [opening, *(f"  {schema}" for schema in schemas), closing]
     return Outcome("\n".join(lines), Previewed(schemas=schemas), warnings)
+
+
+class TestRun(BaseModel):
+    model: str = Field(
+        description="The Gold Model's Logical Name, such as `sales.gold.fct_orders`."
+    )
+    test: str = Field(description="The Test, as `nstx test` names it, such as `unique(order_id)`.")
+
+
+class Tested(BaseModel):
+    tests: list[TestRun] = Field(
+        description="Every Test that ran, and passed. When one fails, `nstx test` exits 1 with a"
+        " diagnostic for each failure instead."
+    )
+
+
+@command()
+def test(
+    pull_request: Annotated[
+        int | None,
+        typer.Option(
+            "--pr",
+            min=1,
+            help="Test this pull request's Preview Environment. CI passes it, after `nstx preview"
+            " --pr`. Left out, Nimblestax tests your own.",
+            show_default=False,
+        ),
+    ] = None,
+    root: ProjectOption = Path("."),
+) -> Outcome[Tested]:
+    """Run each Gold Model's Tests on a Preview Environment's tables, yours or a pull request's."""
+    loaded = project.load(root)
+    ran = model_tests.run(loaded, DatabricksCli(), pull_request)
+    runs = [
+        TestRun(model=f"{r.model.domain}.{r.model.layer}.{r.model.entity}", test=r.test)
+        for r in ran
+    ]
+    if not runs:
+        return Outcome("No gold model has Tests, so none ran.", Tested(tests=runs))
+    passed = "1 Test passed:" if len(runs) == 1 else f"{len(runs)} Tests passed:"
+    lines = [passed, *(f"  {r.model}: {r.test}" for r in runs)]
+    return Outcome("\n".join(lines), Tested(tests=runs))
 
 
 @app.command(

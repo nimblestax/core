@@ -5,13 +5,145 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag, model_validator
+from pydantic_core import PydanticCustomError
 
 from nimblestax.diagnostics import Diagnostic, error
-from nimblestax.kinds.base import CONFIG_SUFFIXES, STRICT, ExactInteger, InDomain, config_files
+from nimblestax.kinds.base import (
+    CONFIG_SUFFIXES,
+    STRICT,
+    ExactInteger,
+    Identifier,
+    InDomain,
+    config_files,
+)
 
 KIND = "model"
 FOLDER = "models"
+
+
+class Unique(BaseModel):
+    """No two rows share a value of these columns. Rows with a NULL in any of them are skipped."""
+
+    model_config = ConfigDict(**STRICT, title="Unique")
+
+    unique: list[Identifier] = Field(
+        min_length=1, description="The columns that together hold a different value in each row."
+    )
+
+    @property
+    def name(self) -> str:
+        return f"unique({', '.join(self.unique)})"
+
+
+class RowLimits(BaseModel):
+    """How many rows a table may have."""
+
+    model_config = ConfigDict(**STRICT, title="Row limits")
+
+    min: int = Field(default=1, ge=0, description="The fewest rows the table may have.")
+    max: int | None = Field(
+        default=None, ge=0, description="The most rows the table may have. Left out, no limit."
+    )
+
+
+class RowCount(BaseModel):
+    """The table has between `min` and `max` rows. `row_count: {}` checks it isn't empty."""
+
+    model_config = ConfigDict(**STRICT, title="Row count")
+
+    row_count: RowLimits = Field(description="How many rows the table may have.")
+
+    @property
+    def name(self) -> str:
+        limits = self.row_count
+        most = f", max: {limits.max}" if limits.max is not None else ""
+        return f"row_count(min: {limits.min}{most})"
+
+
+class Window(BaseModel):
+    """A date or timestamp column, and how recent its newest value must be."""
+
+    model_config = ConfigDict(**STRICT, title="Freshness window")
+
+    column: Identifier = Field(description="A date or timestamp column.")
+    within: str = Field(
+        pattern=r"^[1-9][0-9]* (minute|hour|day)s?$",
+        description="How old the newest value may be, such as `6 hours` or `2 days`.",
+    )
+
+    @property
+    def interval(self) -> str:
+        """`within` as a SQL interval, such as `INTERVAL 2 DAY`."""
+        number, unit = self.within.split()
+        return f"INTERVAL {number} {unit.removesuffix('s').upper()}"
+
+
+class Fresh(BaseModel):
+    """The newest value of `column` is no older than `within`, by the warehouse's clock."""
+
+    model_config = ConfigDict(**STRICT, title="Fresh")
+
+    fresh: Window = Field(description="The column, and how recent its newest value must be.")
+
+    @property
+    def name(self) -> str:
+        return f"fresh({self.fresh.column}, within: {self.fresh.within})"
+
+
+class Reference(BaseModel):
+    """A column, and the table and key its values must be in."""
+
+    model_config = ConfigDict(**STRICT, title="Reference")
+
+    column: Identifier = Field(description="The column whose values must be in the other table.")
+    to: str = Field(
+        pattern=r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*){2}$",
+        description="The other table's Logical Name, such as `shared.gold.dim_customers`.",
+    )
+    key: Identifier | None = Field(
+        default=None, description="The other table's column. Left out, it has `column`'s name."
+    )
+
+    @property
+    def key_column(self) -> str:
+        return self.key or self.column
+
+
+class References(BaseModel):
+    """Every value of `column` is a `key` in the table `to`. NULLs are skipped."""
+
+    model_config = ConfigDict(**STRICT, title="References")
+
+    references: Reference = Field(description="The column, and the table and key it refers to.")
+
+    @property
+    def name(self) -> str:
+        found = self.references
+        return f"references({found.column}, to: {found.to}.{found.key_column})"
+
+
+def _test_type(value: Any) -> str | None:
+    """A Test is a mapping with one key, its type, so a mistake is reported against that type."""
+    if isinstance(value, BaseModel):
+        return next(iter(type(value).model_fields))  # Each Test's one field is its type.
+    if isinstance(value, dict) and len(value) == 1:
+        return next(iter(value))
+    return None
+
+
+Test = Annotated[
+    Annotated[Unique, Tag("unique")]
+    | Annotated[RowCount, Tag("row_count")]
+    | Annotated[Fresh, Tag("fresh")]
+    | Annotated[References, Tag("references")],
+    Discriminator(
+        _test_type,
+        custom_error_type="test_type",
+        custom_error_message="A Test is one of `unique`, `row_count`, `fresh` or `references`,"
+        " with its settings",
+    ),
+]
 
 
 class ModelV1(InDomain):
@@ -26,6 +158,29 @@ class ModelV1(InDomain):
     sql: str = Field(
         pattern=r"^[^/\\]+\.sql$", description="The SQL file, in the same folder as this file."
     )
+    owner: str = Field(
+        min_length=1,
+        description="Who answers for this table: a team or a person, such as `sales-analytics`.",
+    )
+    tests: list[Test] = Field(
+        default=[],
+        description="The Tests `nstx test` runs on this model's table in a Preview Environment.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _has_owner(cls, data: Any) -> Any:
+        # Its own rule rather than a missing field, so the fix can say what an owner is.
+        if isinstance(data, dict) and "owner" not in data:
+            raise PydanticCustomError(
+                "NSTX134",
+                "This Gold Model has no `owner`, and every Gold Model has one.",
+                {
+                    "fix": "Add `owner: <team>` naming who answers for this table, such as"
+                    " `owner: sales-analytics`."
+                },
+            )
+        return data
 
     @property
     def layer(self) -> str:

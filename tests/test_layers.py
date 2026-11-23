@@ -33,7 +33,7 @@ def set_model_layers(project: Path, *layers: str) -> None:
 def write_model(project: Path, path: str, query: str) -> None:
     config = project / "domains" / path
     config.parent.mkdir(parents=True, exist_ok=True)
-    config.write_text(f"kind: model\nversion: 1\nsql: {config.stem}.sql\n")
+    config.write_text(f"kind: model\nversion: 1\nsql: {config.stem}.sql\nowner: sales-analytics\n")
     config.with_suffix(".sql").write_text(query)
 
 

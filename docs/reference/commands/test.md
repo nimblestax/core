@@ -1,0 +1,34 @@
+---
+title: nstx test
+description: Run each Gold Model's Tests on a Preview Environment's tables, yours or a pull request's.
+generated: true
+nimblestax_version: 0.1.0
+---
+
+```console
+$ nstx test [OPTIONS]
+```
+
+## Options
+
+| Option | Takes | Default | Meaning |
+| --- | --- | --- | --- |
+| `--pr` | number |  | Test this pull request's Preview Environment. CI passes it, after `nstx preview --pr`. Left out, Nimblestax tests your own. |
+| `--project` | path | `.` | The project folder. |
+| `--json` | Nothing |  | Print one JSON envelope. |
+
+## JSON result
+
+With `--json`, it prints the [envelope](../json-output.md) with `schema` set to `nimblestax.test/1`. When it succeeds, `result` is:
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `tests` | array of object | Every Test that ran, and passed. When one fails, `nstx test` exits 1 with a diagnostic for each failure instead. |
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| 0 | Clean |
+| 1 | Rule failures: the project needs a change |
+| 2 | Usage or environment error: the command line or the machine needs a change |

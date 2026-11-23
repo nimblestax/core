@@ -22,6 +22,7 @@ A file with `kind: platform`, at version 2. `nstx schema platform` prints the sa
 | `environments.<name>.schedule.cron` | string | yes |  | A Quartz cron expression, such as `0 0 6 * * ?` for 6am every day. |
 | `environments.<name>.schedule.timezone` | string | no | `UTC` | The time zone `cron` is read in, such as `Australia/Sydney`. |
 | `environments.<name>.schedule.paused` | boolean | no | `null` | Whether the schedule is paused. Left out, it runs in the Production Environment and is paused everywhere else. |
+| `environments.<name>.warehouse` | string | no | `null` | The ID of the SQL warehouse `nstx test` runs Tests on. Read from the Development Environment, whose workspace holds every Preview Environment. Left out, Nimblestax uses the only warehouse you can see there. |
 | `naming` | object | yes |  | The Naming Style, and the model Layers. |
 | `naming.style` | one of `domain-catalogs`, `layer-catalogs`, `environment-catalogs` | yes |  | Where tables live. In prod, `sales.silver.orders` is `prod_sales.silver.orders` under `domain-catalogs`, `prod_silver.sales.orders` under `layer-catalogs`, `prod.sales_silver.orders` under `environment-catalogs`. |
 | `naming.layers` | object | yes |  | The model Layers. |

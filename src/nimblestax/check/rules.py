@@ -2,7 +2,7 @@
 
 from nimblestax import names, sql
 from nimblestax.diagnostics import Diagnostic, error
-from nimblestax.kinds.model import Model
+from nimblestax.kinds.model import Model, References
 from nimblestax.kinds.platform import SHARED_DOMAIN
 from nimblestax.kinds.seed import Seed
 from nimblestax.kinds.source import Source
@@ -38,6 +38,7 @@ def check(project: Project) -> list[Diagnostic]:
         diagnostics += [_raw_placeholder(file, found) for found in query.raw_placeholders]
     return (
         diagnostics
+        + _referenced_tables(project, known)
         + _cycles(project, reads)
         + _seeds_named_like_sources(project)
         + _named_like_a_quarantine(project)
@@ -185,6 +186,28 @@ def _other_domains_gold(file: str, written: sql.Found, read: LogicalName) -> Dia
         " into the Shared Domain.",
         written.line,
     )
+
+
+def _referenced_tables(project: Project, known: set[LogicalName]) -> list[Diagnostic]:
+    """A `references` Test reads its other table on the same preview, so the project builds it."""
+    diagnostics = []
+    for model in project.models:
+        for test in model.tests:
+            if not isinstance(test, References):
+                continue
+            if LogicalName(*test.references.to.split(".")) in known:
+                continue
+            diagnostics.append(
+                error(
+                    "NSTX213",
+                    model.config_file.relative_to(project.root).as_posix(),
+                    f"`{test.name}` refers to `{test.references.to}`, which isn't a table in this"
+                    " project.",
+                    "Correct `to` to the Logical Name of a Source, Seed or Gold Model, such as"
+                    " `shared.gold.dim_customers`.",
+                )
+            )
+    return diagnostics
 
 
 def _gold(project: Project, model: Model) -> LogicalName:

@@ -67,6 +67,7 @@ Each command's page describes its `result`.
 - [`nstx compile`](commands/compile.md): Write generated code, or print it for one Environment.
 - [`nstx deploy`](commands/deploy.md): Deploy to an Environment, refresh its tables, and write its Deployment Manifest.
 - [`nstx preview`](commands/preview.md): Deploy your working tree to a Preview Environment, yours or a pull request's.
+- [`nstx test`](commands/test.md): Run each Gold Model's Tests on a Preview Environment's tables, yours or a pull request's.
 - [`nstx skills update`](commands/skills.md#update): Refresh both copies of each Nimblestax Skill to this Nimblestax's version.
 
 ## Exit codes

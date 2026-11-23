@@ -92,6 +92,9 @@ def schema_fields(schema: dict, defs: dict) -> list[tuple[str, str, str]]:
             inner = field["additionalProperties"].get("$ref")
         if inner:
             fields += schema_fields(defs[inner.split("/")[-1]], defs)
+        # A list of choices, such as Tests, lists each choice's fields in turn.
+        for choice in field.get("items", {}).get("oneOf", []):
+            fields += schema_fields(defs[choice["$ref"].split("/")[-1]], defs)
     return fields
 
 

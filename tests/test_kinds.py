@@ -174,7 +174,12 @@ def test_a_project_with_no_platform_contract_fails_with_a_rule_id(project: Path)
 def test_every_starter_model_declares_its_kind_beside_its_sql(project: Path, model: str):
     config = yaml.safe_load((project / f"domains/sales/models/gold/{model}.yaml").read_text())
 
-    assert config == {"kind": "model", "version": 1, "sql": f"{model}.sql"}
+    assert config == {
+        "kind": "model",
+        "version": 1,
+        "sql": f"{model}.sql",
+        "owner": "sales-analytics",
+    }
 
 
 def test_sql_with_no_config_beside_it_fails_validation(project: Path):

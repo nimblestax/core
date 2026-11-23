@@ -2,3 +2,4 @@
 kind: model
 version: 1
 sql: fct_orders.sql
+owner: sales-analytics

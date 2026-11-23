@@ -77,6 +77,13 @@ class Environment(BaseModel):
         description="When the Environment's Job runs on its own. Left out, it runs only on"
         " each deploy.",
     )
+    warehouse: str | None = Field(
+        default=None,
+        min_length=1,
+        description="The ID of the SQL warehouse `nstx test` runs Tests on. Read from the"
+        " Development Environment, whose workspace holds every Preview Environment. Left out,"
+        " Nimblestax uses the only warehouse you can see there.",
+    )
 
 
 def _one_default(environments: dict[str, Environment]) -> None:

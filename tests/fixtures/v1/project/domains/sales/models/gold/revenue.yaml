@@ -1,3 +1,4 @@
 kind: model
 version: 1
 sql: revenue_query.sql
+owner: sales-analytics

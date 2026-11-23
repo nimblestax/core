@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 from collections import deque
 from datetime import UTC, datetime, timedelta
 from functools import cached_property
@@ -21,10 +22,22 @@ KEPT_LINES = 10
 # before the refresh started. A failed deploy takes longer than this, so no older error shows up.
 CLOCK_SKEW = timedelta(minutes=1)
 
+# A statement waits this long for its answer before Nimblestax polls for it, the most the
+# Statement Execution API allows. A warehouse that's starting up takes longer.
+STATEMENT_WAIT = "50s"
+POLL_SECONDS = 2
+# A Test that runs longer than this is stuck, or reads far more than a Test should.
+STATEMENT_TIMEOUT = timedelta(minutes=30)
+UNFINISHED = {"PENDING", "RUNNING"}
+
 
 class WorkspaceError(Failure):
     def __init__(self, message: str, rule: str = "NSTX904", fix: str = "Read the log on stderr."):
         super().__init__([error(rule, "", message, fix)], USAGE_OR_ENVIRONMENT)
+
+
+class QueryFailed(Exception):
+    """A SQL statement the warehouse ran and refused, such as one naming a missing column."""
 
 
 class Workspace(Protocol):
@@ -133,6 +146,45 @@ class DatabricksCli:
     def delete_file(self, package: Path, target: str, path: str) -> None:
         self._call(package, "workspace", "delete", path, "--target", target)
 
+    def exists(self, package: Path, target: str, path: str) -> bool:
+        printed, failure = self._try(
+            package, "workspace", "get-status", path, "--target", target, "-o", "json"
+        )
+        if not failure:
+            return True
+        if "doesn't exist" in failure or "RESOURCE_DOES_NOT_EXIST" in failure:
+            return False
+        sys.stderr.write(failure)
+        raise WorkspaceError(f"databricks workspace get-status {path} failed.")
+
+    def warehouses(self, host: str) -> list[tuple[str, str]]:
+        listed = self._json(None, "warehouses", "list", "--output", "json", host=host)
+        return [(warehouse["id"], warehouse["name"]) for warehouse in listed or []]
+
+    def query(self, host: str, warehouse: str, statement: str) -> list[list]:
+        """Run one statement through the Statement Execution API, polling until it finishes."""
+        body = {"warehouse_id": warehouse, "statement": statement, "wait_timeout": STATEMENT_WAIT}
+        ran = self._json(
+            None, "api", "post", "/api/2.0/sql/statements", "--json", json.dumps(body), host=host
+        )
+        deadline = datetime.now() + STATEMENT_TIMEOUT
+        while ran["status"]["state"] in UNFINISHED:
+            if datetime.now() > deadline:
+                raise WorkspaceError(
+                    f"The SQL warehouse {warehouse} didn't finish a Test's statement in"
+                    f" {STATEMENT_TIMEOUT}.",
+                    fix="Check the warehouse is running, then run `nstx test` again.",
+                )
+            time.sleep(POLL_SECONDS)
+            path = f"/api/2.0/sql/statements/{ran['statement_id']}"
+            ran = self._json(None, "api", "get", path, host=host)
+        state = ran["status"]["state"]
+        if state == "FAILED":
+            raise QueryFailed(ran["status"].get("error", {}).get("message", "No reason given."))
+        if state != "SUCCEEDED":
+            raise WorkspaceError(f"The SQL warehouse {warehouse} ended a Test's statement {state}.")
+        return ran.get("result", {}).get("data_array") or []
+
     def catalogs(self, host: str) -> set[str]:
         listed = self._json(None, "catalogs", "list", "--output", "json", host=host)
         return {catalog["name"] for catalog in listed}
@@ -176,6 +228,15 @@ class DatabricksCli:
         if cli.returncode:
             raise WorkspaceError(f"databricks {' '.join(arguments)} failed.")
         return printed
+
+    def _try(self, package: Path | None, *arguments: str) -> tuple[str, str]:
+        """Run a command and return what it printed, and what it said on stderr if it failed."""
+        command = [self._executable, *arguments]
+        with _start(command, package, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as cli:
+            printed, said = cli.communicate()
+        if not cli.returncode:
+            return printed, ""
+        return printed, said or f"databricks {' '.join(arguments)} failed and said nothing."
 
 
 def _start(command: list[str], package: Path | None, **streams: Any) -> subprocess.Popen[str]:

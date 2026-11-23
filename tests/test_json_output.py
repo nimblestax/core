@@ -285,6 +285,7 @@ REGISTERED_RULES = {
     "NSTX131": "two-environments-with-one-role",
     "NSTX132": "environment-name-not-an-identifier",
     "NSTX133": "reserved-environment-name",
+    "NSTX134": "model-without-owner",
     "NSTX201": "unresolved-logical-name",
     "NSTX202": "duplicate-table",
     "NSTX203": "unparseable-sql",
@@ -297,9 +298,12 @@ REGISTERED_RULES = {
     "NSTX210": "read-against-build-order",
     "NSTX211": "stream-of-upsert-silver",
     "NSTX212": "stream-of-materialized-view",
+    "NSTX213": "test-references-unknown-table",
     "NSTX301": "missing-catalog",
     "NSTX302": "missing-schema",
     "NSTX303": "developer-group-missing-grant",
+    "NSTX401": "test-failed",
+    "NSTX402": "test-could-not-run",
     "NSTX901": "usage-error",
     "NSTX902": "unknown-environment",
     "NSTX903": "databricks-cli-missing",
@@ -322,6 +326,8 @@ REGISTERED_RULES = {
     "NSTX920": "preview-schema-taken",
     "NSTX921": "example-has-no-preview",
     "NSTX922": "preview-down-outside-fence",
+    "NSTX923": "no-warehouse-for-tests",
+    "NSTX924": "no-preview-to-test",
 }
 
 
@@ -376,7 +382,9 @@ def read_a_domains_gold_from_shared(project: Path) -> None:
     replacing("nimblestax.platform.yaml", "  - sales\n", "  - sales\n  - shared\n")(project)
     folder = project / "domains/shared/models/gold"
     folder.mkdir(parents=True)
-    (folder / "dim_order.yaml").write_text("kind: model\nversion: 1\nsql: dim_order.sql\n")
+    (folder / "dim_order.yaml").write_text(
+        "kind: model\nversion: 1\nsql: dim_order.sql\nowner: sales-analytics\n"
+    )
     (folder / "dim_order.sql").write_text("SELECT * FROM sales.gold.fct_orders")
 
 
@@ -444,6 +452,7 @@ INVALID_PROJECTS = {
     "NSTX133": replacing(
         PLATFORM, "    role: development\n", "    role: development\n  preview: {}\n"
     ),
+    "NSTX134": replacing(f"{MODEL}.yaml", "owner: sales-analytics\n", ""),
     "NSTX201": lambda project: (project / f"{MODEL}.sql").write_text("SELECT * FROM a.b.c"),
     "NSTX202": seed("code: STRING", "code\nAU\n", name="orders"),
     "NSTX203": lambda project: (project / f"{MODEL}.sql").write_text("SELECT FROM WHERE"),
@@ -478,6 +487,11 @@ INVALID_PROJECTS = {
         seed("code: STRING", "code\nAU\n")(project),
         (project / f"{MODEL}.sql").write_text("SELECT * FROM STREAM(sales.silver.countries)"),
     ),
+    "NSTX213": replacing(
+        f"{MODEL}.yaml",
+        "owner: sales-analytics\n",
+        "owner: sales-analytics\ntests:\n  - references: {column: id, to: sales.gold.nope}\n",
+    ),
 }
 
 
@@ -510,6 +524,7 @@ def test_a_new_rule_must_be_tested_here():
     examples = {"NSTX916"}
     previews = {"NSTX920", "NSTX921", "NSTX922"}
     build_packages = {"NSTX917", "NSTX918", "NSTX919"}
+    model_tests = {"NSTX401", "NSTX402", "NSTX923", "NSTX924"}
 
     assert set(RULES) == (
         set(INVALID_PROJECTS)
@@ -521,6 +536,7 @@ def test_a_new_rule_must_be_tested_here():
         | examples
         | previews
         | build_packages
+        | model_tests
     )
 
 
