@@ -29,3 +29,5 @@ A file with `kind: platform`, at version 2. `nstx schema platform` prints the sa
 | `naming.layers.models` | list of string | yes |  | One or more model Layers, in any order. Each is a folder under `models/`. |
 | `domains` | list of string | yes |  | The Domains, one folder each under `domains/`. |
 | `developers` | string | no | `null` | The group whose members deploy their own Preview Environments into the Development Environment's catalogs. `nstx validate --platform` checks it holds `USE CATALOG`, `USE SCHEMA`, `CREATE SCHEMA` and `READ VOLUME` on them. Left out, nothing is checked. |
+| `tests` | object | no |  | How `nstx test` runs Tests on a Preview Environment. |
+| `tests.concurrency` | integer | no | `4` | How many Tests run at once on the SQL warehouse. `1` runs them one after another. A small warehouse queues what it can't run, so more than it handles only waits. |

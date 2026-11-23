@@ -7,7 +7,9 @@ and no Test type fails only because it ran on a preview.
 
 import json
 import sys
+import threading
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -72,30 +74,55 @@ def run(project: Project, workspace: TestWorkspace, pull_request: int | None = N
     warehouse = _warehouse(project, workspace, host)
     schemas = names.preview_schemas(platform, target.prefix)
     tests = [(model, test) for model in project.models for test in model.tests]
+    at_once = platform.tests.concurrency
     if tests:
         whose = "your" if pull_request is None else f"pull request {pull_request}'s"
         counted = "1 Test" if len(tests) == 1 else f"{len(tests)} Tests"
         _say(
             f"Running {counted} on {whose} Preview Environment ({target.prefix}), on warehouse"
-            f" {warehouse}.\n"
+            f" {warehouse}, {at_once} at a time."
         )
-    ran = []
-    for number, (model, test) in enumerate(tests, 1):
+    finished = Counter(len(tests))
+
+    def run_one(model: Model, test: Test) -> Ran:
         # Said before the query, because a warehouse that's starting up can take minutes.
-        _say(f"  [{number}/{len(tests)}] {_dotted(model)}: {test.name} ... ")
+        _say(f"  {'started':<12} {_dotted(model)}: {test.name}")
         found = _run(workspace, host, warehouse, project, model, test, schemas)
-        _say(f"{_outcome(found)}\n")
-        ran.append(found)
+        _say(f"  {_outcome(found):<12} {_dotted(model)}: {test.name}  ({finished.next()})")
+        return found
+
+    with ThreadPoolExecutor(max_workers=at_once) as pool:
+        # `map` keeps the order Tests are declared in, however they finish.
+        ran = list(pool.map(lambda pair: run_one(*pair), tests))
     failed = [_failed(found) for found in ran if found.failure or found.error]
     if failed:
         raise Failure(failed)
     return ran
 
 
-def _say(text: str) -> None:
-    """Progress goes to stderr, so stdout holds only what the command prints, such as `--json`."""
-    sys.stderr.write(text)
-    sys.stderr.flush()
+_SAYING = threading.Lock()
+
+
+def _say(line: str) -> None:
+    """Progress goes to stderr, so stdout holds only what the command prints, such as `--json`.
+    One whole line at a time, so lines from Tests running at once never interleave."""
+    with _SAYING:
+        sys.stderr.write(line + "\n")
+        sys.stderr.flush()
+
+
+class Counter:
+    """How many of `total` Tests have finished, as `3/10`, counted safely across threads."""
+
+    def __init__(self, total: int):
+        self.total = total
+        self.done = 0
+        self.lock = threading.Lock()
+
+    def next(self) -> str:
+        with self.lock:
+            self.done += 1
+            return f"{self.done}/{self.total}"
 
 
 def _dotted(model: Model) -> str:

@@ -33,7 +33,7 @@ Every gold model has an `owner`. A gold model without one fails `nstx validate` 
 | `row_count: {min: <n>, max: <n>}` | The table has at least `min` rows and at most `max`. `min` is 1 when you leave it out, and `max` has no limit, so `row_count: {}` checks the table isn't empty. |
 | `references: {column: <column>, to: <table>}` | Every value of `column` is in the table `to`, a logical name such as `sales.silver.regions`. Its column has the same name unless you give `key`. A NULL is skipped. |
 
-`nstx test` lists each test on stderr as it runs, with its result, so `--json` output on stdout stays one envelope. A test fails with [`NSTX401`](../reference/rules/nstx401.md), which names the test and the table and shows up to five values that broke it. A test the warehouse can't run, such as one naming a column the table doesn't have, fails with [`NSTX402`](../reference/rules/nstx402.md). The other tests still run.
+`nstx test` says on stderr when each test starts and how it ended, so `--json` output on stdout stays one envelope. A test fails with [`NSTX401`](../reference/rules/nstx401.md), which names the test and the table and shows up to five values that broke it. A test the warehouse can't run, such as one naming a column the table doesn't have, fails with [`NSTX402`](../reference/rules/nstx402.md). The other tests still run.
 
 ## Where tests run
 
@@ -45,9 +45,11 @@ nstx test
 ```
 
 ```text
-Running 2 Tests on your Preview Environment (u_priya__), on warehouse 4b9b953939869799.
-  [1/2] sales.gold.fct_orders: unique(order_id) ... failed
-  [2/2] sales.gold.fct_orders: row_count(min: 1) ... passed
+Running 2 Tests on your Preview Environment (u_priya__), on warehouse 4b9b953939869799, 4 at a time.
+  started      sales.gold.fct_orders: unique(order_id)
+  started      sales.gold.fct_orders: row_count(min: 1)
+  passed       sales.gold.fct_orders: row_count(min: 1)  (1/2)
+  failed       sales.gold.fct_orders: unique(order_id)  (2/2)
 NSTX401 domains/sales/models/gold/fct_orders.yaml: `unique(order_id)` failed on `sales.gold.fct_orders`: 2 values appear in more than one row, such as {"order_id":1001}, {"order_id":1002}.
   Fix: Fix the model's SQL or the data it reads, or correct the Test, then run `nstx preview` and `nstx test` again.
 ```
@@ -56,7 +58,14 @@ A preview builds every table from all of dev's rows, so a test sees the data it 
 
 On a pull request, the GitHub workflow runs `nstx test --pr <N>` right after `nstx preview --pr <N>`, in the same job, so a failed test fails the pull request's checks.
 
-Each test is one SQL query on a warehouse in the development environment's workspace. Nimblestax uses the warehouse that `warehouse` names under the development environment in `nimblestax.platform.yaml`. When you leave it out and you can see only one warehouse, Nimblestax uses that one. Whoever runs `nstx test`, you or CI's identity, needs permission to use it.
+Each test is one SQL query on a warehouse in the development environment's workspace. Nimblestax uses the warehouse that `warehouse` names under the development environment in `nimblestax.platform.yaml`. When you leave it out and you can see only one warehouse, Nimblestax uses that one. Whoever runs `nstx test`, you or CI's identity, needs permission to use it. Tests run 4 at a time. Set how many in `nimblestax.platform.yaml`:
+
+```yaml
+tests:
+  concurrency: 8
+```
+
+`1` runs them one after another. A warehouse queues the queries it can't run yet, so a number above what it handles only waits.
 
 Tests don't run after a refresh in test or prod yet.
 

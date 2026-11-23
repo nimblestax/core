@@ -340,6 +340,21 @@ def _style_list() -> str:
     return f"{', '.join(first)} or {last}"
 
 
+class TestSettings(BaseModel):
+    """Settings for `nstx test`."""
+
+    model_config = ConfigDict(**STRICT, title="Test settings")
+
+    concurrency: int = Field(
+        default=4,
+        ge=1,
+        le=64,
+        description="How many Tests run at once on the SQL warehouse. `1` runs them one after"
+        " another. A small warehouse queues what it can't run, so more than it handles only"
+        " waits.",
+    )
+
+
 class PlatformV2(BaseModel):
     """The shared facts about a project's platform."""
 
@@ -365,6 +380,10 @@ class PlatformV2(BaseModel):
         " Development Environment's catalogs. `nstx validate --platform` checks it holds `USE"
         " CATALOG`, `USE SCHEMA`, `CREATE SCHEMA` and `READ VOLUME` on them. Left out, nothing"
         " is checked.",
+    )
+    tests: TestSettings = Field(
+        default_factory=TestSettings,
+        description="How `nstx test` runs Tests on a Preview Environment.",
     )
 
     @field_validator("environments")

@@ -3,6 +3,8 @@ tables."""
 
 import json
 import sys
+import threading
+import time
 from collections.abc import Callable
 from io import BytesIO
 from pathlib import Path
@@ -39,6 +41,11 @@ class FakeWorkspace:
         self.queries: list[tuple[str, str, str]] = []
         # Called as each query starts, so a test can see what was said before it.
         self.on_query: Callable[[], None] = lambda: None
+        # How long each query takes, and the most that ran at once.
+        self.delay = 0.0
+        self.peak = 0
+        self._running = 0
+        self._lock = threading.Lock()
 
     def current_user(self, host: str) -> str:
         return self.user
@@ -58,6 +65,12 @@ class FakeWorkspace:
 
     def query(self, host: str, warehouse: str, statement: str) -> list[list]:
         self.on_query()
+        with self._lock:
+            self._running += 1
+            self.peak = max(self.peak, self._running)
+        time.sleep(self.delay)
+        with self._lock:
+            self._running -= 1
         self.queries.append((host, warehouse, statement))
         for table, measured in self.measures.items():
             if f" {table}" in statement:
@@ -404,9 +417,15 @@ def test_a_statement_with_no_rows_returns_none(
     assert DatabricksCli().query(stub_workspace, WAREHOUSE, "SELECT 1 WHERE false") == []
 
 
-def test_each_test_is_reported_on_stderr_as_it_runs_leaving_stdout_one_envelope(
+def run_tests_at_a_time(project: Path, concurrency: int) -> None:
+    platform = project / "nimblestax.platform.yaml"
+    platform.write_text(platform.read_text() + f"tests:\n  concurrency: {concurrency}\n")
+
+
+def test_each_test_is_reported_on_stderr_as_it_starts_and_ends_leaving_stdout_one_envelope(
     project: Path, workspace: FakeWorkspace
 ):
+    run_tests_at_a_time(project, 1)
     with_tests(project, "  - unique: [order_id]\n")
     with_tests(project, "  - row_count: {}\n", "domains/sales/models/gold/dim_date.yaml")
     workspace.measures[PREVIEW_FCT_ORDERS] = ["0", "[]"]
@@ -417,13 +436,16 @@ def test_each_test_is_reported_on_stderr_as_it_runs_leaving_stdout_one_envelope(
     assert result.exit_code == 1, result.output
     assert json.loads(result.stdout)["ok"] is False
     assert result.stderr.splitlines() == [
-        f"Running 2 Tests on your Preview Environment (u_bijil__), on warehouse {WAREHOUSE}.",
-        "  [1/2] sales.gold.dim_date: row_count(min: 1) ... failed",
-        "  [2/2] sales.gold.fct_orders: unique(order_id) ... passed",
+        f"Running 2 Tests on your Preview Environment (u_bijil__), on warehouse {WAREHOUSE},"
+        " 1 at a time.",
+        "  started      sales.gold.dim_date: row_count(min: 1)",
+        "  failed       sales.gold.dim_date: row_count(min: 1)  (1/2)",
+        "  started      sales.gold.fct_orders: unique(order_id)",
+        "  passed       sales.gold.fct_orders: unique(order_id)  (2/2)",
     ]
 
 
-def test_each_test_is_announced_before_its_query_runs(project: Path, workspace: FakeWorkspace):
+def test_a_test_is_announced_before_its_query_runs(project: Path, workspace: FakeWorkspace):
     with_tests(project, "  - unique: [order_id]\n")
     workspace.measures[PREVIEW_FCT_ORDERS] = ["0", "[]"]
     seen: list[str] = []
@@ -433,16 +455,62 @@ def test_each_test_is_announced_before_its_query_runs(project: Path, workspace: 
     result = nstx(project, "test")
 
     assert result.exit_code == 0, result.output
-    assert seen and seen[0].endswith("sales.gold.fct_orders: unique(order_id) ... ")
+    assert seen and seen[0].endswith("  started      sales.gold.fct_orders: unique(order_id)\n")
 
 
-def test_a_test_that_cant_run_is_reported_as_such_as_it_runs(
-    project: Path, workspace: FakeWorkspace
-):
+def test_a_test_that_cant_run_is_reported_as_such(project: Path, workspace: FakeWorkspace):
     with_tests(project, "  - unique: [order_no]\n")
     workspace.measures[PREVIEW_FCT_ORDERS] = QueryFailed("[UNRESOLVED_COLUMN] order_no")
 
     result = nstx(project, "test")
 
-    assert "  [1/1] sales.gold.fct_orders: unique(order_no) ... couldn't run" in result.stderr
+    assert "  couldn't run sales.gold.fct_orders: unique(order_no)  (1/1)" in result.stderr
     assert result.stderr.startswith("Running 1 Test on your Preview Environment")
+
+
+SEVERAL_TESTS = (
+    "  - unique: [order_id]\n  - unique: [amount]\n  - row_count: {}\n  - row_count: {min: 0}\n"
+)
+
+
+@pytest.mark.parametrize(("concurrency", "expected"), [(None, 4), (2, 2), (1, 1)])
+def test_tests_run_as_many_at_a_time_as_the_platform_contract_says_by_default_4(
+    project: Path, workspace: FakeWorkspace, concurrency: int | None, expected: int
+):
+    if concurrency:
+        run_tests_at_a_time(project, concurrency)
+    with_tests(project, SEVERAL_TESTS)
+    workspace.measures[PREVIEW_FCT_ORDERS] = ["5", "[]"]  # Every Test passes or fails alike.
+    workspace.delay = 0.05
+
+    result = nstx(project, "test", "--json")
+
+    assert workspace.peak == expected, result.output
+    assert len(workspace.queries) == 4
+
+
+def test_failures_are_reported_in_the_order_tests_are_declared_however_they_finish(
+    project: Path, workspace: FakeWorkspace
+):
+    with_tests(project, "  - unique: [order_id]\n")
+    with_tests(project, "  - row_count: {}\n", "domains/sales/models/gold/dim_date.yaml")
+    workspace.measures[PREVIEW_FCT_ORDERS] = ["2", '["1","2"]']
+    workspace.measures["dev_sales.u_bijil__gold.dim_date"] = ["0"]
+
+    result = nstx(project, "test", "--json")
+
+    files = [found["file"] for found in json.loads(result.stdout)["diagnostics"]]
+    assert files == ["domains/sales/models/gold/dim_date.yaml", FCT_ORDERS]
+
+
+@pytest.mark.parametrize("concurrency", ["0", "65", "two"])
+def test_concurrency_is_a_whole_number_from_1_to_64(project: Path, concurrency: str):
+    platform = project / "nimblestax.platform.yaml"
+    platform.write_text(platform.read_text() + f"tests:\n  concurrency: {concurrency}\n")
+
+    result = nstx(project, "validate", "--json")
+
+    assert result.exit_code == 1
+    [found] = json.loads(result.stdout)["diagnostics"]
+    assert found["rule"] == "NSTX106"
+    assert found["file"] == "nimblestax.platform.yaml"
