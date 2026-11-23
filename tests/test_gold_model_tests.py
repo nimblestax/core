@@ -533,3 +533,79 @@ def test_an_identity_without_databricks_sql_access_gets_the_grant_to_ask_for(
     assert found.rule == "NSTX925"
     assert "databricks-sql-access" in found.fix
     assert "CAN USE" in found.fix
+
+
+DIM_DATE = "domains/sales/models/gold/dim_date.yaml"
+PREVIEW_DIM_DATE = "dev_sales.u_bijil__gold.dim_date"
+
+
+def queried_tables(workspace: FakeWorkspace) -> set[str]:
+    return {
+        table
+        for table in (PREVIEW_FCT_ORDERS, PREVIEW_DIM_DATE)
+        for *_, sql in workspace.queries
+        if f" {table}" in sql
+    }
+
+
+@pytest.mark.parametrize("name", ["fct_orders", "sales.gold.fct_orders", "Sales.Gold.FCT_ORDERS"])
+def test_model_selects_the_tests_of_one_model_by_name_or_logical_name(
+    project: Path, workspace: FakeWorkspace, name: str
+):
+    with_tests(project, "  - unique: [order_id]\n")
+    with_tests(project, "  - row_count: {}\n", DIM_DATE)
+    workspace.measures[PREVIEW_FCT_ORDERS] = ["0", "[]"]
+
+    result = nstx(project, "test", "--model", name, "--json")
+
+    assert result.exit_code == 0, result.output
+    assert queried_tables(workspace) == {PREVIEW_FCT_ORDERS}
+    assert json.loads(result.stdout)["result"]["tests"] == [
+        {"model": "sales.gold.fct_orders", "test": "unique(order_id)"}
+    ]
+
+
+def test_model_can_be_given_more_than_once(project: Path, workspace: FakeWorkspace):
+    with_tests(project, "  - unique: [order_id]\n")
+    with_tests(project, "  - row_count: {}\n", DIM_DATE)
+    workspace.measures[PREVIEW_FCT_ORDERS] = ["0", "[]"]
+    workspace.measures[PREVIEW_DIM_DATE] = ["5"]
+
+    result = nstx(project, "test", "--model", "fct_orders", "--model", "dim_date")
+
+    assert result.exit_code == 0, result.output
+    assert queried_tables(workspace) == {PREVIEW_FCT_ORDERS, PREVIEW_DIM_DATE}
+
+
+def test_a_name_that_matches_no_model_exits_2_listing_the_models_before_reaching_databricks(
+    project: Path, workspace: FakeWorkspace
+):
+    workspace.deployed = False  # Nothing about the workspace should be asked.
+
+    result = nstx(project, "test", "--model", "fct_order", "--json")
+
+    assert result.exit_code == 2, result.output
+    [found] = json.loads(result.stdout)["diagnostics"]
+    assert found["rule"] == "NSTX926"
+    assert "`fct_order`" in found["message"]
+    assert "sales.gold.dim_date" in found["fix"] and "sales.gold.fct_orders" in found["fix"]
+
+
+def test_a_name_two_domains_share_exits_2_asking_for_the_logical_name(
+    project: Path, workspace: FakeWorkspace
+):
+    platform = project / "nimblestax.platform.yaml"
+    platform.write_text(platform.read_text().replace("  - sales\n", "  - sales\n  - finance\n"))
+    finance = project / "domains/finance/models/gold"
+    finance.mkdir(parents=True)
+    (finance / "fct_orders.sql").write_text("SELECT 1 AS order_id\n")
+    (finance / "fct_orders.yaml").write_text(
+        "kind: model\nversion: 1\nsql: fct_orders.sql\nowner: finance-analytics\n"
+    )
+
+    result = nstx(project, "test", "--model", "fct_orders", "--json")
+
+    assert result.exit_code == 2, result.output
+    [found] = json.loads(result.stdout)["diagnostics"]
+    assert found["rule"] == "NSTX926"
+    assert "finance.gold.fct_orders" in found["fix"] and "sales.gold.fct_orders" in found["fix"]

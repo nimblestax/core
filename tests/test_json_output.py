@@ -329,6 +329,7 @@ REGISTERED_RULES = {
     "NSTX923": "no-warehouse-for-tests",
     "NSTX924": "no-preview-to-test",
     "NSTX925": "no-databricks-sql-access",
+    "NSTX926": "no-such-model",
 }
 
 
@@ -525,7 +526,7 @@ def test_a_new_rule_must_be_tested_here():
     examples = {"NSTX916"}
     previews = {"NSTX920", "NSTX921", "NSTX922"}
     build_packages = {"NSTX917", "NSTX918", "NSTX919"}
-    model_tests = {"NSTX401", "NSTX402", "NSTX923", "NSTX924", "NSTX925"}
+    model_tests = {"NSTX401", "NSTX402", "NSTX923", "NSTX924", "NSTX925", "NSTX926"}
 
     assert set(RULES) == (
         set(INVALID_PROJECTS)

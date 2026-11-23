@@ -54,6 +54,12 @@ NSTX401 domains/sales/models/gold/fct_orders.yaml: `unique(order_id)` failed on 
   Fix: Fix the model's SQL or the data it reads, or correct the Test, then run `nstx preview` and `nstx test` again.
 ```
 
+To run only some gold models' tests, name each one with `--model`, by its name or, when two domains share the name, its logical name:
+
+```sh
+nstx test --model fct_orders --model finance.gold.fct_revenue
+```
+
 A preview builds every table from all of dev's rows, so a test sees the data it would see in dev. No test fails only because it ran on a preview. A `references` test reads the preview's own copy of the other table, so a new row your change adds there counts. Kettle runs in catalogs of its own and has no preview, so you run `nstx test` in your own project.
 
 On a pull request, the GitHub workflow runs `nstx test --pr <N>` right after `nstx preview --pr <N>`, in the same job, so a failed test fails the pull request's checks.

@@ -680,11 +680,21 @@ def test(
             show_default=False,
         ),
     ] = None,
+    models: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--model",
+            help="Run only this Gold Model's Tests: its name, such as `fct_orders`, or its"
+            " Logical Name, such as `sales.gold.fct_orders`. Give it more than once for more"
+            " models. Left out, every Gold Model's Tests run.",
+            show_default=False,
+        ),
+    ] = None,
     root: ProjectOption = Path("."),
 ) -> Outcome[Tested]:
     """Run each Gold Model's Tests on a Preview Environment's tables, yours or a pull request's."""
     loaded = project.load(root)
-    ran = model_tests.run(loaded, DatabricksCli(), pull_request)
+    ran = model_tests.run(loaded, DatabricksCli(), pull_request, models or ())
     runs = [
         TestRun(model=f"{r.model.domain}.{r.model.layer}.{r.model.entity}", test=r.test)
         for r in ran

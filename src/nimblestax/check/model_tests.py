@@ -8,7 +8,7 @@ and no Test type fails only because it ran on a preview.
 import json
 import sys
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -58,8 +58,14 @@ class Ran:
     error: str | None = None
 
 
-def run(project: Project, workspace: TestWorkspace, pull_request: int | None = None) -> list[Ran]:
-    """Run every Test on the signed-in person's Preview Environment, or on `pull_request`'s.
+def run(
+    project: Project,
+    workspace: TestWorkspace,
+    pull_request: int | None = None,
+    models: Sequence[str] = (),
+) -> list[Ran]:
+    """Run the Tests of `models`, by default every Gold Model's, on the signed-in person's
+    Preview Environment, or on `pull_request`'s.
 
     Fails with a diagnostic per failed Test.
     """
@@ -67,13 +73,14 @@ def run(project: Project, workspace: TestWorkspace, pull_request: int | None = N
     problems = errors(rules.check(project))
     if problems:
         raise Failure(problems)
+    chosen = select(project, models)
     platform = project.platform
     host = platform.hosts[platform.development_environment]
     target = preview.whose(project, workspace, pull_request)
     _require_deployed(project, workspace, target, pull_request)
     warehouse = _warehouse(project, workspace, host)
     schemas = names.preview_schemas(platform, target.prefix)
-    tests = [(model, test) for model in project.models for test in model.tests]
+    tests = [(model, test) for model in chosen for test in model.tests]
     at_once = platform.tests.concurrency
     if tests:
         whose = "your" if pull_request is None else f"pull request {pull_request}'s"
@@ -101,6 +108,32 @@ def run(project: Project, workspace: TestWorkspace, pull_request: int | None = N
 
 
 _SAYING = threading.Lock()
+
+
+def select(project: Project, names: Sequence[str]) -> list[Model]:
+    """The Gold Models `names` pick, in the project's order. Each name is a Model's name, or its
+    Logical Name when two Domains have a Model of that name. No names picks every Model."""
+    if not names:
+        return list(project.models)
+    picked: set[str] = set()
+    for name in names:
+        wanted = name.lower()
+        found = [m for m in project.models if wanted in (_dotted(m), m.name.lower())]
+        if len(found) != 1:
+            raise Failure([_unselected(name, found or list(project.models))], USAGE_OR_ENVIRONMENT)
+        picked.add(_dotted(found[0]))
+    return [model for model in project.models if _dotted(model) in picked]
+
+
+def _unselected(name: str, candidates: list[Model]) -> Diagnostic:
+    listed = ", ".join(f"`{_dotted(model)}`" for model in candidates)
+    if len(candidates) > 1 and all(model.name.lower() == name.lower() for model in candidates):
+        message = f"`{name}` names a Gold Model in more than one Domain."
+        fix = f"Give its Logical Name instead, one of: {listed}."
+    else:
+        message = f"`{name}` isn't a Gold Model in this project."
+        fix = f"Give a Gold Model's name or its Logical Name, one of: {listed}."
+    return error("NSTX926", "", message, fix)
 
 
 def _say(line: str) -> None:

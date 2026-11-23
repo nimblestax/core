@@ -14,6 +14,7 @@ $ nstx test [OPTIONS]
 | Option | Takes | Default | Meaning |
 | --- | --- | --- | --- |
 | `--pr` | number |  | Test this pull request's Preview Environment. CI passes it, after `nstx preview --pr`. Left out, Nimblestax tests your own. |
+| `--model` | text |  | Run only this Gold Model's Tests: its name, such as `fct_orders`, or its Logical Name, such as `sales.gold.fct_orders`. Give it more than once for more models. Left out, every Gold Model's Tests run. |
 | `--project` | path | `.` | The project folder. |
 | `--json` | Nothing |  | Print one JSON envelope. |
 
