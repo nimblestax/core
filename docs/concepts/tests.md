@@ -54,7 +54,7 @@ NSTX401 domains/sales/models/gold/fct_orders.yaml: `unique(order_id)` failed on 
   Fix: Fix the model's SQL or the data it reads, or correct the Test, then run `nstx preview` and `nstx test` again.
 ```
 
-To run only some gold models' tests, list them with `--model`, separated by commas. Use a model's name, or its logical name when two domains share the name:
+To run only some gold models' tests, list them with `--model`, separated by commas. Use a model's name, or its logical name when more than one model has that name, in two domains or in two model layers of one domain:
 
 ```sh
 nstx test --model fct_orders,finance.gold.fct_revenue

@@ -622,3 +622,27 @@ def test_model_takes_a_comma_separated_list(project: Path, workspace: FakeWorksp
 
     assert result.exit_code == 0, result.output
     assert queried_tables(workspace) == {PREVIEW_FCT_ORDERS, PREVIEW_DIM_DATE}
+
+
+def test_a_name_two_model_layers_share_exits_2_listing_both_logical_names(
+    project: Path, workspace: FakeWorkspace
+):
+    platform = project / "nimblestax.platform.yaml"
+    platform.write_text(platform.read_text().replace("models: [gold]", "models: [gold, marts]"))
+    marts = project / "domains/sales/models/marts"
+    marts.mkdir(parents=True)
+    (marts / "fct_orders.sql").write_text("SELECT order_id FROM sales.gold.fct_orders\n")
+    (marts / "fct_orders.yaml").write_text(
+        "kind: model\nversion: 1\nsql: fct_orders.sql\nowner: sales-analytics\n"
+    )
+
+    result = nstx(project, "test", "--model", "fct_orders", "--json")
+
+    assert result.exit_code == 2, result.output
+    [found] = json.loads(result.stdout)["diagnostics"]
+    assert found["rule"] == "NSTX926"
+    assert found["message"] == "`fct_orders` names more than one Gold Model."
+    assert "sales.gold.fct_orders" in found["fix"] and "sales.marts.fct_orders" in found["fix"]
+
+    result = nstx(project, "test", "--model", "sales.marts.fct_orders", "--json")
+    assert result.exit_code == 0, result.output

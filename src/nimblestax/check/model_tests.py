@@ -112,7 +112,7 @@ _SAYING = threading.Lock()
 
 def select(project: Project, names: Sequence[str]) -> list[Model]:
     """The Gold Models `names` pick, in the project's order. Each name is a Model's name, or its
-    Logical Name when two Domains have a Model of that name, and one value may list several,
+    Logical Name when more than one Model has that name, and one value may list several,
     separated by commas. No names picks every Model."""
     # A name is made of identifiers, so it never holds a comma.
     names = [part.strip() for given in names for part in given.split(",") if part.strip()]
@@ -131,7 +131,8 @@ def select(project: Project, names: Sequence[str]) -> list[Model]:
 def _unselected(name: str, candidates: list[Model]) -> Diagnostic:
     listed = ", ".join(f"`{_dotted(model)}`" for model in candidates)
     if len(candidates) > 1 and all(model.name.lower() == name.lower() for model in candidates):
-        message = f"`{name}` names a Gold Model in more than one Domain."
+        # Two Domains, or two model Layers of one Domain, can each have a Model of one name.
+        message = f"`{name}` names more than one Gold Model."
         fix = f"Give its Logical Name instead, one of: {listed}."
     else:
         message = f"`{name}` isn't a Gold Model in this project."
