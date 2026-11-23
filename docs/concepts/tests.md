@@ -5,6 +5,8 @@ description: The rules a gold model's whole table is checked against, where they
 
 A test is a rule about a gold model's whole table, such as no two rows sharing an `order_id`. You declare a gold model's tests beside its SQL, with its `owner`, the team or person who answers for the table. `nstx test` runs them on a preview environment's tables.
 
+A test is not an [expectation](expectations.md). An expectation checks one row as it's written to silver, on every refresh. A test checks a whole table once it's built, before your change merges. [Tests and expectations](#tests-and-expectations) sets them side by side.
+
 In Kettle, the tea shop that `nstx init --example kettle` writes, finance's daily revenue has one row per day and region, every region is one the shop knows, and the table is never empty:
 
 ```yaml title="domains/finance/models/gold/fct_revenue.yaml"

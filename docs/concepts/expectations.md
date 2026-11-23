@@ -5,6 +5,8 @@ description: The row-level rules a source's silver is checked against, which row
 
 An expectation is a rule on one row of a source's silver table. A row meets it only when its `expect` condition is true. False or NULL is a failure.
 
+An expectation can see only its own row. A rule about a whole table, such as no two rows sharing a key or every region being one the shop knows, is a [test](tests.md). [Tests and expectations](tests.md#tests-and-expectations) sets them side by side.
+
 In Kettle, the tea shop that `nstx init --example kettle` writes, every customer needs an email:
 
 ```yaml title="domains/sales/sources/customers.yaml"
@@ -40,7 +42,7 @@ On an upsert source, which has `keys`, every change is checked, except a delete.
 
 So Kettle's day 2 data deletes customer 12 with `{"customer_id": 12, "operation": "DELETE", "updated_at": "2026-03-03T10:00:00"}`, even though it has no `email`.
 
-A delete with a bad or NULL key still reaches silver, where it matches no row and changes nothing. To catch bad keys in deletes, test the silver table.
+A delete with a bad or NULL key still reaches silver, where it matches no row and changes nothing.
 
 ## Changing a rule that quarantines
 
