@@ -1173,6 +1173,20 @@ RULES = {
         fix="Run `nstx preview`, or `nstx preview --pr <number>` for a pull request's preview,"
         " then `nstx test` again.",
     ),
+    "NSTX925": Rule(
+        "no-databricks-sql-access",
+        checks="The identity `nstx test` runs as isn't allowed to use Databricks SQL.",
+        why="Tests run as SQL on a warehouse, and a workspace only lets an identity use Databricks"
+        " SQL once it has the `databricks-sql-access` entitlement. A service principal often"
+        " lacks it, because deploying a bundle doesn't need it. It exits 2.",
+        example=Example(
+            command="nstx test --pr 42",
+            when="The Development Environment's deploying identity has no `databricks-sql-access`"
+            " entitlement.",
+        ),
+        fix="Ask a workspace admin to give the identity the `databricks-sql-access` entitlement,"
+        " and `CAN USE` on the SQL warehouse Tests run on.",
+    ),
     "NSTX922": Rule(
         "preview-down-outside-fence",
         checks="`nstx preview down` found a schema in the preview's bundle state outside your"

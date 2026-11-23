@@ -58,7 +58,7 @@ A preview builds every table from all of dev's rows, so a test sees the data it 
 
 On a pull request, the GitHub workflow runs `nstx test --pr <N>` right after `nstx preview --pr <N>`, in the same job, so a failed test fails the pull request's checks.
 
-Each test is one SQL query on a warehouse in the development environment's workspace. Nimblestax uses the warehouse that `warehouse` names under the development environment in `nimblestax.platform.yaml`. When you leave it out and you can see only one warehouse, Nimblestax uses that one. Whoever runs `nstx test`, you or CI's identity, needs permission to use it. Tests run 4 at a time. Set how many in `nimblestax.platform.yaml`:
+Each test is one SQL query on a warehouse in the development environment's workspace. Nimblestax uses the warehouse that `warehouse` names under the development environment in `nimblestax.platform.yaml`. When you leave it out and you can see only one warehouse, Nimblestax uses that one. Whoever runs `nstx test`, you or CI's identity, needs the `databricks-sql-access` entitlement and `CAN USE` on that warehouse. Without the entitlement, `nstx test` stops with [`NSTX925`](../reference/rules/nstx925.md). Tests run 4 at a time. Set how many in `nimblestax.platform.yaml`:
 
 ```yaml
 tests:

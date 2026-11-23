@@ -28,6 +28,8 @@ class _Workspace(BaseHTTPRequestHandler):
     warehouses: list[dict] = []
     answers: list[dict] = []
     statements: list[dict] = []
+    # Whether the signed-in identity lacks the entitlement Databricks SQL needs.
+    sql_denied = False
 
     def do_GET(self) -> None:
         query = parse_qs(urlparse(self.path).query)
@@ -42,6 +44,8 @@ class _Workspace(BaseHTTPRequestHandler):
                 self._reply(404, {"error_code": "RESOURCE_DOES_NOT_EXIST", "message": message})
             else:
                 self._reply(200, {"object_type": "DIRECTORY", "object_id": 1})
+        elif self.path.startswith("/api/2.0/sql/") and self.sql_denied:
+            self._sql_denied()
         elif self.path.startswith("/api/2.0/sql/warehouses"):
             self._reply(200, {"warehouses": self.warehouses})
         elif self.path.startswith("/api/2.0/sql/statements/"):
@@ -64,11 +68,21 @@ class _Workspace(BaseHTTPRequestHandler):
             self.files[body["path"]] = base64.b64decode(body.get("content", "")).decode()
         elif self.path.endswith("/workspace/delete"):
             self.files.pop(body["path"], None)
+        elif self.path.endswith("/sql/statements") and self.sql_denied:
+            self._sql_denied()
+            return
         elif self.path.endswith("/sql/statements"):
             self.statements.append(body)
             self._reply(200, self.answers.pop(0))
             return
         self._reply(200, {})
+
+    def _sql_denied(self) -> None:
+        message = (
+            "This API is disabled for users without the databricks-sql-access entitlement."
+            " Contact your administrator for more information."
+        )
+        self._reply(403, {"error_code": "PERMISSION_DENIED", "message": message})
 
     def _reply(self, status: int, body: dict) -> None:
         self.send_response(status)
@@ -86,6 +100,7 @@ def stub_workspace() -> Iterator[str]:
     _Workspace.warehouses = []
     _Workspace.answers = []
     _Workspace.statements = []
+    _Workspace.sql_denied = False
     server = HTTPServer(("127.0.0.1", 0), _Workspace)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{server.server_port}"

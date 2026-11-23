@@ -106,3 +106,4 @@ A Rule's ID is `NSTX` plus three digits, and its first digit is its series. Each
 | [`NSTX922`](nstx922.md) | `preview-down-outside-fence` | `nstx preview down` found a schema in the preview's bundle state outside your `u_<user>__` schemas, or outside the Development Environment's catalogs. |
 | [`NSTX923`](nstx923.md) | `no-warehouse-for-tests` | `nstx test` can't tell which SQL warehouse to run Tests on. |
 | [`NSTX924`](nstx924.md) | `no-preview-to-test` | `nstx test` found no Preview Environment of this project to run Tests on. |
+| [`NSTX925`](nstx925.md) | `no-databricks-sql-access` | The identity `nstx test` runs as isn't allowed to use Databricks SQL. |

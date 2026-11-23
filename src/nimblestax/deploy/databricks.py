@@ -29,6 +29,8 @@ POLL_SECONDS = 2
 # A Test that runs longer than this is stuck, or reads far more than a Test should.
 STATEMENT_TIMEOUT = timedelta(minutes=30)
 UNFINISHED = {"PENDING", "RUNNING"}
+# What Databricks says when an identity may not use Databricks SQL at all.
+SQL_ENTITLEMENT = "databricks-sql-access"
 
 
 class WorkspaceError(Failure):
@@ -158,15 +160,13 @@ class DatabricksCli:
         raise WorkspaceError(f"databricks workspace get-status {path} failed.")
 
     def warehouses(self, host: str) -> list[tuple[str, str]]:
-        listed = self._json(None, "warehouses", "list", "--output", "json", host=host)
+        listed = self._sql(host, "warehouses", "list", "--output", "json")
         return [(warehouse["id"], warehouse["name"]) for warehouse in listed or []]
 
     def query(self, host: str, warehouse: str, statement: str) -> list[list]:
         """Run one statement through the Statement Execution API, polling until it finishes."""
         body = {"warehouse_id": warehouse, "statement": statement, "wait_timeout": STATEMENT_WAIT}
-        ran = self._json(
-            None, "api", "post", "/api/2.0/sql/statements", "--json", json.dumps(body), host=host
-        )
+        ran = self._sql(host, "api", "post", "/api/2.0/sql/statements", "--json", json.dumps(body))
         deadline = datetime.now() + STATEMENT_TIMEOUT
         while ran["status"]["state"] in UNFINISHED:
             if datetime.now() > deadline:
@@ -177,13 +177,35 @@ class DatabricksCli:
                 )
             time.sleep(POLL_SECONDS)
             path = f"/api/2.0/sql/statements/{ran['statement_id']}"
-            ran = self._json(None, "api", "get", path, host=host)
+            ran = self._sql(host, "api", "get", path)
         state = ran["status"]["state"]
         if state == "FAILED":
             raise QueryFailed(ran["status"].get("error", {}).get("message", "No reason given."))
         if state != "SUCCEEDED":
             raise WorkspaceError(f"The SQL warehouse {warehouse} ended a Test's statement {state}.")
         return ran.get("result", {}).get("data_array") or []
+
+    def _sql(self, host: str, *arguments: str) -> Any:
+        """A Databricks SQL call, which needs an entitlement a workspace may not have given."""
+        printed, failure = self._try(None, *arguments, host=host)
+        if failure:
+            sys.stderr.write(failure)
+            if SQL_ENTITLEMENT in failure:
+                raise WorkspaceError(
+                    "The identity Nimblestax runs as can't use Databricks SQL, so it can't run"
+                    " Tests.",
+                    "NSTX925",
+                    f"Ask a workspace admin to give it the `{SQL_ENTITLEMENT}` entitlement, and"
+                    " `CAN USE` on the SQL warehouse Tests run on. For CI, that's the Development"
+                    " Environment's deploying identity.",
+                )
+            raise WorkspaceError(f"databricks {' '.join(arguments)} failed.")
+        try:
+            return json.loads(printed)
+        except json.JSONDecodeError as problem:
+            raise WorkspaceError(
+                f"databricks {' '.join(arguments)} didn't print JSON."
+            ) from problem
 
     def catalogs(self, host: str) -> set[str]:
         listed = self._json(None, "catalogs", "list", "--output", "json", host=host)
@@ -229,10 +251,14 @@ class DatabricksCli:
             raise WorkspaceError(f"databricks {' '.join(arguments)} failed.")
         return printed
 
-    def _try(self, package: Path | None, *arguments: str) -> tuple[str, str]:
+    def _try(
+        self, package: Path | None, *arguments: str, host: str | None = None
+    ) -> tuple[str, str]:
         """Run a command and return what it printed, and what it said on stderr if it failed."""
         command = [self._executable, *arguments]
-        with _start(command, package, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as cli:
+        env = {**os.environ, "DATABRICKS_HOST": host} if host else None
+        streams: dict[str, Any] = {"stdout": subprocess.PIPE, "stderr": subprocess.PIPE}
+        with _start(command, package, env=env, **streams) as cli:
             printed, said = cli.communicate()
         if not cli.returncode:
             return printed, ""

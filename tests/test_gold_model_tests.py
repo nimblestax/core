@@ -18,7 +18,7 @@ from nimblestax import cli
 from nimblestax.build import compiler
 from nimblestax.cli import app
 from nimblestax.deploy import databricks
-from nimblestax.deploy.databricks import DatabricksCli, QueryFailed
+from nimblestax.deploy.databricks import DatabricksCli, QueryFailed, WorkspaceError
 from nimblestax.load.project import load
 
 runner = CliRunner()
@@ -514,3 +514,22 @@ def test_concurrency_is_a_whole_number_from_1_to_64(project: Path, concurrency: 
     [found] = json.loads(result.stdout)["diagnostics"]
     assert found["rule"] == "NSTX106"
     assert found["file"] == "nimblestax.platform.yaml"
+
+
+@pytest.mark.parametrize("named_warehouse", [False, True])
+def test_an_identity_without_databricks_sql_access_gets_the_grant_to_ask_for(
+    cli_project: Path, stub_workspace: str, stub_warehouse, named_warehouse: bool
+):
+    stub_warehouse.sql_denied = True
+    workspace = DatabricksCli()
+
+    with pytest.raises(WorkspaceError) as raised:
+        if named_warehouse:
+            workspace.query(stub_workspace, WAREHOUSE, "SELECT 1")
+        else:
+            workspace.warehouses(stub_workspace)
+
+    [found] = raised.value.diagnostics
+    assert found.rule == "NSTX925"
+    assert "databricks-sql-access" in found.fix
+    assert "CAN USE" in found.fix
