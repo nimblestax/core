@@ -61,36 +61,6 @@ class RowCount(BaseModel):
         return f"row_count(min: {limits.min}{most})"
 
 
-class Window(BaseModel):
-    """A date or timestamp column, and how recent its newest value must be."""
-
-    model_config = ConfigDict(**STRICT, title="Freshness window")
-
-    column: Identifier = Field(description="A date or timestamp column.")
-    within: str = Field(
-        pattern=r"^[1-9][0-9]* (minute|hour|day)s?$",
-        description="How old the newest value may be, such as `6 hours` or `2 days`.",
-    )
-
-    @property
-    def interval(self) -> str:
-        """`within` as a SQL interval, such as `INTERVAL 2 DAY`."""
-        number, unit = self.within.split()
-        return f"INTERVAL {number} {unit.removesuffix('s').upper()}"
-
-
-class Fresh(BaseModel):
-    """The newest value of `column` is no older than `within`, by the warehouse's clock."""
-
-    model_config = ConfigDict(**STRICT, title="Fresh")
-
-    fresh: Window = Field(description="The column, and how recent its newest value must be.")
-
-    @property
-    def name(self) -> str:
-        return f"fresh({self.fresh.column}, within: {self.fresh.within})"
-
-
 class Reference(BaseModel):
     """A column, and the table and key its values must be in."""
 
@@ -135,13 +105,12 @@ def _test_type(value: Any) -> str | None:
 Test = Annotated[
     Annotated[Unique, Tag("unique")]
     | Annotated[RowCount, Tag("row_count")]
-    | Annotated[Fresh, Tag("fresh")]
     | Annotated[References, Tag("references")],
     Discriminator(
         _test_type,
         custom_error_type="test_type",
-        custom_error_message="A Test is one of `unique`, `row_count`, `fresh` or `references`,"
-        " with its settings",
+        custom_error_message="A Test is one of `unique`, `row_count` or `references`, with its"
+        " settings",
     ),
 ]
 

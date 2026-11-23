@@ -17,7 +17,7 @@ from nimblestax.check import rules
 from nimblestax.deploy import manifest, preview
 from nimblestax.deploy.databricks import QueryFailed
 from nimblestax.diagnostics import USAGE_OR_ENVIRONMENT, Diagnostic, Failure, error, errors
-from nimblestax.kinds.model import Fresh, Model, References, RowCount, Test, Unique
+from nimblestax.kinds.model import Model, References, RowCount, Test, Unique
 from nimblestax.load.project import Project
 from nimblestax.names import LogicalName
 
@@ -160,13 +160,6 @@ def _sql(test: Test, table: str, in_preview: Callable[[LogicalName], str]) -> st
             )
         case RowCount():
             return f"SELECT COUNT(*) FROM {table}"
-        case Fresh(fresh=window):
-            newest = f"MAX({window.column})"
-            return (
-                f"SELECT CAST({newest} AS STRING),"
-                f" CAST({newest} >= current_timestamp() - {window.interval} AS STRING)\n"
-                f"FROM {table}"
-            )
         case References(references=found):
             other = in_preview(LogicalName(*found.to.split(".")))
             return (
@@ -191,13 +184,6 @@ def _failure(test: Test, measured: list) -> str | None:
             if rows >= limits.min and (limits.max is None or rows <= limits.max):
                 return None
             return f"The table has {_rows(rows)}."
-        case Fresh(fresh=window):
-            newest, recent = measured
-            if recent == "true":
-                return None
-            if newest is None:
-                return f"The table has no `{window.column}` values."
-            return f"The newest `{window.column}` is {newest}, older than {window.within}."
         case References(references=found):
             missing, examples = int(measured[0]), json.loads(measured[1] or "[]")
             if not missing:

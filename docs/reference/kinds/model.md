@@ -15,14 +15,11 @@ A file with `kind: model`, at version 1. `nstx schema model` prints the same fie
 | `version` | `1` | yes |  | The schema version of this Kind. |
 | `sql` | string | yes |  | The SQL file, in the same folder as this file. |
 | `owner` | string | yes |  | Who answers for this table: a team or a person, such as `sales-analytics`. |
-| `tests` | list of a mapping with one of `unique`, `row_count`, `fresh`, `references` | no | `[]` | The Tests `nstx test` runs on this model's table in a Preview Environment. |
+| `tests` | list of a mapping with one of `unique`, `row_count`, `references` | no | `[]` | The Tests `nstx test` runs on this model's table in a Preview Environment. |
 | `tests[].unique` | list of string | yes |  | The columns that together hold a different value in each row. |
 | `tests[].row_count` | object | yes |  | How many rows the table may have. |
 | `tests[].row_count.min` | integer | no | `1` | The fewest rows the table may have. |
 | `tests[].row_count.max` | integer | no | `null` | The most rows the table may have. Left out, no limit. |
-| `tests[].fresh` | object | yes |  | The column, and how recent its newest value must be. |
-| `tests[].fresh.column` | string | yes |  | A date or timestamp column. |
-| `tests[].fresh.within` | string | yes |  | How old the newest value may be, such as `6 hours` or `2 days`. |
 | `tests[].references` | object | yes |  | The column, and the table and key it refers to. |
 | `tests[].references.column` | string | yes |  | The column whose values must be in the other table. |
 | `tests[].references.to` | string | yes |  | The other table's Logical Name, such as `shared.gold.dim_customers`. |

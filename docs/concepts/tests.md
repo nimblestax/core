@@ -29,7 +29,6 @@ Every gold model has an `owner`. A gold model without one fails `nstx validate` 
 | --- | --- |
 | `unique: [<column>, ...]` | No two rows share a value of these columns. A row with a NULL in any of them is skipped. |
 | `row_count: {min: <n>, max: <n>}` | The table has at least `min` rows and at most `max`. `min` is 1 when you leave it out, and `max` has no limit, so `row_count: {}` checks the table isn't empty. |
-| `fresh: {column: <column>, within: <window>}` | The newest value of a date or timestamp column is no older than `within`, such as `6 hours` or `2 days`. The warehouse's clock decides. |
 | `references: {column: <column>, to: <table>}` | Every value of `column` is in the table `to`, a logical name such as `sales.silver.regions`. Its column has the same name unless you give `key`. A NULL is skipped. |
 
 A test fails with [`NSTX401`](../reference/rules/nstx401.md), which names the test and the table and shows up to five values that broke it. A test the warehouse can't run, such as one naming a column the table doesn't have, fails with [`NSTX402`](../reference/rules/nstx402.md). The other tests still run.

@@ -222,43 +222,6 @@ def test_a_row_count_test_checks_its_minimum_and_maximum(
     assert (result.exit_code == 0) is passes, result.output
 
 
-def test_a_freshness_test_fails_when_the_newest_value_is_older_than_it_allows(
-    project: Path, workspace: FakeWorkspace
-):
-    with_tests(project, "  - fresh: {column: ordered_at, within: 2 days}\n")
-    workspace.measures[PREVIEW_FCT_ORDERS] = ["2026-11-18T08:00:00.000Z", "false"]
-
-    [message] = failures(nstx(project, "test", "--json"))
-
-    assert "`fresh(ordered_at, within: 2 days)`" in message
-    assert "2026-11-18T08:00:00.000Z" in message
-    # The warehouse's clock decides, not this machine's.
-    [(_, _, statement)] = workspace.queries
-    assert "current_timestamp() - INTERVAL 2 DAY" in statement
-
-
-def test_a_freshness_test_passes_on_a_recent_value_and_fails_on_an_empty_table(
-    project: Path, workspace: FakeWorkspace
-):
-    with_tests(project, "  - fresh: {column: ordered_at, within: 6 hours}\n")
-    workspace.measures[PREVIEW_FCT_ORDERS] = ["2026-11-23T08:00:00.000Z", "true"]
-    assert nstx(project, "test").exit_code == 0
-
-    workspace.measures[PREVIEW_FCT_ORDERS] = [None, None]
-    [message] = failures(nstx(project, "test", "--json"))
-    assert "no `ordered_at`" in message
-
-
-def test_a_freshness_window_must_be_a_number_of_minutes_hours_or_days(project: Path):
-    with_tests(project, "  - fresh: {column: ordered_at, within: a while}\n")
-
-    result = nstx(project, "validate", "--json")
-
-    assert result.exit_code == 1
-    [found] = json.loads(result.stdout)["diagnostics"]
-    assert found["rule"] == "NSTX106"
-
-
 REFERENCES_ORDERS = "  - references: {column: order_id, to: sales.silver.orders}\n"
 
 
