@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-nstx = "nimblestax.cli:app"
+nsx = "nimblestax.cli:app"
 nimblestax = "nimblestax.cli:app"
 
 [build-system]

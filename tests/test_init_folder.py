@@ -1,4 +1,4 @@
-"""`nstx init [FOLDER]` creates the project folder, and never overwrites a project."""
+"""`nsx init [FOLDER]` creates the project folder, and never overwrites a project."""
 
 import json
 from pathlib import Path
@@ -26,7 +26,7 @@ def test_a_second_init_in_the_same_folder_fails_and_changes_nothing(tmp_path: Pa
     result = init(str(tmp_path))
 
     assert result.exit_code == 2
-    assert "NSTX909" in result.stdout
+    assert "NSX909" in result.stdout
     assert "Fix: " in result.stdout
     assert (tmp_path / FCT_ORDERS).read_text() == "SELECT 1 AS edited\n"
     assert (tmp_path / "nimblestax.platform.yaml").read_text() == contract
@@ -70,8 +70,8 @@ def test_the_refusal_is_one_envelope_with_json(tmp_path: Path):
     assert envelope["schema"] == "nimblestax.init/1"
     assert envelope["ok"] is False
     [diagnostic] = envelope["diagnostics"]
-    assert diagnostic["rule"] == "NSTX909"
-    assert diagnostic["name"] == RULES["NSTX909"].name
+    assert diagnostic["rule"] == "NSX909"
+    assert diagnostic["name"] == RULES["NSX909"].name
     assert diagnostic["file"] == "nimblestax.platform.yaml"
     assert diagnostic["fix"]
 
@@ -83,7 +83,7 @@ def test_init_has_no_project_option(tmp_path: Path):
 def test_the_command_page_shows_the_folder_as_optional():
     page = Path(__file__).parent.parent / "docs/reference/commands/init.md"
 
-    assert "$ nstx init [<folder>] [OPTIONS]" in page.read_text()
+    assert "$ nsx init [<folder>] [OPTIONS]" in page.read_text()
 
 
 def test_at_a_terminal_the_refusal_comes_before_the_question(tmp_path: Path, monkeypatch):

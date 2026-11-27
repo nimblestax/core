@@ -13,7 +13,7 @@ MODELS = "domains/sales/models/gold"
 runner = CliRunner()
 
 
-def nstx(project: Path, *args: str):
+def nsx(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -31,7 +31,7 @@ def write_model(project: Path, name: str, query: str) -> None:
 
 
 def failures(project: Path) -> list[dict]:
-    result = nstx(project, "validate", "--json")
+    result = nsx(project, "validate", "--json")
     assert result.exit_code == 1, result.output
     return json.loads(result.stdout)["diagnostics"]
 
@@ -42,7 +42,7 @@ def test_two_gold_models_that_read_each_other_fail_once_naming_both(project: Pat
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "NSTX208"
+    assert failure["rule"] == "NSX208"
     assert failure["name"] == "model-cycle"
     assert failure["file"] == f"{MODELS}/a.sql"
     assert "sales.gold.a → sales.gold.b → sales.gold.a" in failure["message"]
@@ -54,7 +54,7 @@ def test_a_gold_model_that_reads_itself_fails(project: Path):
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "NSTX208"
+    assert failure["rule"] == "NSX208"
     assert failure["file"] == f"{MODELS}/fct_orders.sql"
     assert "sales.gold.fct_orders → sales.gold.fct_orders" in failure["message"]
 
@@ -85,6 +85,6 @@ def test_models_that_read_in_a_line_pass(project: Path):
     write_model(project, "a", "SELECT * FROM sales.gold.fct_orders")
     write_model(project, "b", "SELECT * FROM sales.gold.a JOIN sales.gold.fct_orders USING (id)")
 
-    result = nstx(project, "validate", "--json")
+    result = nsx(project, "validate", "--json")
 
     assert result.exit_code == 0, result.output

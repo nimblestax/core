@@ -18,7 +18,7 @@ SOURCE = "domains/sales/sources/orders.yaml"
 STARTER_PATH = "path: /Volumes/{env}_sales/bronze/landing/orders\n"
 
 
-def nstx(project: Path, *args: str):
+def nsx(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -45,7 +45,7 @@ def declare_path(project: Path, line: str) -> None:
 
 
 def package(project: Path) -> tuple[str, dict]:
-    result = nstx(project, "compile")
+    result = nsx(project, "compile")
     assert result.exit_code == 0, result.output
     code = (project / "build/src/sales/ingest/orders.sql").read_text()
     return code, yaml.safe_load((project / "build/databricks.yaml").read_text())
@@ -73,7 +73,7 @@ def test_a_path_without_env_is_one_shared_location_and_stays_valid(project: Path
     _, bundle = package(project)
 
     assert set(path_setting_per_target(bundle).values()) == {"/Volumes/shared/landing/orders"}
-    assert nstx(project, "validate").exit_code == 0
+    assert nsx(project, "validate").exit_code == 0
 
 
 def test_env_can_sit_anywhere_in_a_cloud_path(project: Path):
@@ -109,7 +109,7 @@ def test_changing_a_path_changes_settings_and_leaves_generated_code_byte_identic
 
 @pytest.mark.parametrize("env", ["dev", "prod"])
 def test_compile_for_an_environment_prints_that_environments_path(project: Path, env: str):
-    result = nstx(project, "compile", "--env", env)
+    result = nsx(project, "compile", "--env", env)
 
     assert result.exit_code == 0, result.output
     assert f"read_files('/Volumes/{env}_sales/bronze/landing/orders'" in result.stdout
@@ -124,10 +124,10 @@ def test_compile_for_an_environment_prints_that_environments_path(project: Path,
 def test_anything_but_one_non_empty_value_fails_against_the_schema(project: Path, line: str):
     declare_path(project, line)
 
-    result = nstx(project, "validate", "--json")
+    result = nsx(project, "validate", "--json")
 
     assert result.exit_code == 1, result.output
-    assert [d["rule"] for d in json.loads(result.stdout)["diagnostics"]] == ["NSTX106"]
+    assert [d["rule"] for d in json.loads(result.stdout)["diagnostics"]] == ["NSX106"]
 
 
 def test_two_sources_whose_names_join_alike_keep_separate_settings(project: Path):
@@ -152,7 +152,7 @@ def test_every_target_passes_its_own_path_to_the_pipeline(tmp_path: Path, stub_w
     result = runner.invoke(app, ["init", str(tmp_path), "--host", stub_workspace])
     assert result.exit_code == 0, result.output
     add_environments(tmp_path, stub_workspace)
-    assert nstx(tmp_path, "compile").exit_code == 0
+    assert nsx(tmp_path, "compile").exit_code == 0
 
     environment = {
         "PATH": os.environ["PATH"],

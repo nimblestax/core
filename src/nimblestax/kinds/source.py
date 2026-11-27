@@ -42,7 +42,7 @@ class ExpectationV1(BaseModel):
         problem = row_condition_problem(condition)
         if problem:
             raise PydanticCustomError(
-                "NSTX116",
+                "NSX116",
                 "Expectation `{name}` isn't a SQL condition on one row. {problem}",
                 {
                     "name": info.data.get("name", "?"),
@@ -117,7 +117,7 @@ class SilverV1(BaseModel):
         if info.data["keys"] and value is None:
             # A rule ID as the error type reaches the user as that rule, with this fix.
             raise PydanticCustomError(
-                "NSTX110",
+                "NSX110",
                 "`silver.keys` needs `silver.sequence_by`, to order the changes to each key.",
                 {
                     "fix": "Add `sequence_by` with the column that orders changes,"
@@ -142,7 +142,7 @@ class SilverV1(BaseModel):
         problem = value and row_expression_problem(value)
         if problem:
             raise PydanticCustomError(
-                "NSTX119",
+                "NSX119",
                 "`silver.sequence_by` isn't one SQL expression on one row. {problem}",
                 {
                     "problem": problem,
@@ -159,7 +159,7 @@ class SilverV1(BaseModel):
         problem = value and row_condition_problem(value)
         if problem:
             raise PydanticCustomError(
-                "NSTX118",
+                "NSX118",
                 "`silver.delete_when` isn't one SQL condition on one row. {problem}",
                 {
                     "problem": problem,
@@ -172,7 +172,7 @@ class SilverV1(BaseModel):
 
 def _upsert_field_without_keys(name: str) -> PydanticCustomError:
     return PydanticCustomError(
-        "NSTX111",
+        "NSX111",
         "`silver.{name}` only applies to an upsert, and this Source has no `silver.keys`.",
         {
             "name": name,

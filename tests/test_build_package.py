@@ -1,6 +1,7 @@
 """A merge builds one Build Package, and each deploy of it leaves a Deployment Manifest."""
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -63,6 +64,15 @@ class FakeWorkspace:
         return self.list_folder(Path(), target, folder)
 
 
+@pytest.fixture(autouse=True)
+def outside_a_git_hook(monkeypatch: pytest.MonkeyPatch):
+    """Git sets GIT_DIR and friends while running a hook, such as the pre-commit check. Left in
+    place, they point every git command, the tests' and Nimblestax's, at this repo rather than the
+    throwaway one."""
+    for name in [name for name in os.environ if name.startswith("GIT_")]:
+        monkeypatch.delenv(name)
+
+
 def git(project: Path, *args: str) -> str:
     identity = ["-c", "user.name=Test", "-c", "user.email=test@example.com"]
     ran = subprocess.run(
@@ -86,14 +96,14 @@ def project(tmp_path: Path) -> Path:
     return folder
 
 
-def nstx(project: Path, *args: str, workspace: FakeWorkspace | None = None, monkeypatch=None):
+def nsx(project: Path, *args: str, workspace: FakeWorkspace | None = None, monkeypatch=None):
     if workspace is not None and monkeypatch is not None:
         monkeypatch.setattr(cli, "DatabricksCli", lambda: workspace)
     return runner.invoke(cli.app, [*args, "--json", "--project", str(project)])
 
 
 def build(project: Path) -> Path:
-    result = nstx(project, "compile")
+    result = nsx(project, "compile")
     assert result.exit_code == 0, result.output
     return project / "build"
 
@@ -109,7 +119,7 @@ def test_deploying_a_package_to_dev_writes_a_manifest_with_its_commit_and_checks
     package = build(project)
     workspace = FakeWorkspace()
 
-    result = nstx(
+    result = nsx(
         project, "deploy", "--env", "dev", "--package", str(package),
         workspace=workspace, monkeypatch=monkeypatch,
     )  # fmt: skip
@@ -122,7 +132,7 @@ def test_deploying_a_package_to_dev_writes_a_manifest_with_its_commit_and_checks
 
 
 def deploy(project: Path, env: str, package: Path, workspace: FakeWorkspace, monkeypatch):
-    return nstx(
+    return nsx(
         project, "deploy", "--env", env, "--package", str(package),
         workspace=workspace, monkeypatch=monkeypatch,
     )  # fmt: skip
@@ -235,7 +245,7 @@ def test_deploy_refuses_a_package_changed_since_it_was_built(
 
     assert result.exit_code == 2, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX918"
+    assert diagnostic["rule"] == "NSX918"
     assert "src/sales/gold/fct_orders.sql" in diagnostic["message"]
     assert workspace.deployed == []
 
@@ -249,7 +259,7 @@ def test_deploy_refuses_a_folder_that_is_not_a_package(
 
     assert result.exit_code == 2, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX917"
+    assert diagnostic["rule"] == "NSX917"
     assert workspace.deployed == []
 
 
@@ -259,7 +269,7 @@ def test_deploy_without_a_package_builds_one_and_records_it(
     sha = commit(project)
     workspace = FakeWorkspace()
 
-    result = nstx(project, "deploy", "--env", "dev", workspace=workspace, monkeypatch=monkeypatch)
+    result = nsx(project, "deploy", "--env", "dev", workspace=workspace, monkeypatch=monkeypatch)
 
     assert result.exit_code == 0, result.output
     assert json.loads(result.stdout)["result"] == {
@@ -320,7 +330,7 @@ def test_old_copies_that_cannot_be_removed_only_warn(
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.stdout)
     [diagnostic] = envelope["diagnostics"]
-    assert (diagnostic["rule"], diagnostic["severity"]) == ("NSTX919", "warning")
+    assert (diagnostic["rule"], diagnostic["severity"]) == ("NSX919", "warning")
     assert "manifest.json" in " ".join(workspace.files)
 
 
@@ -354,8 +364,8 @@ def test_the_merge_workflow_builds_one_package_and_deploys_it_to_dev_as_dev(tmp_
     package_steps = jobs["package"]["steps"]
     deploy_steps = jobs["deploy-dev"]["steps"]
     runs = [step["run"] for step in package_steps + deploy_steps if "run" in step]
-    assert all(run.startswith('uvx --from "$NIMBLESTAX_SPEC" nstx ') for run in runs)
-    assert [run.split(" nstx ")[1] for run in runs] == [
+    assert all(run.startswith('uvx --from "$NIMBLESTAX_SPEC" nsx ') for run in runs)
+    assert [run.split(" nsx ")[1] for run in runs] == [
         "validate",
         "compile",
         "validate --platform --env dev",

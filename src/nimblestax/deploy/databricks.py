@@ -34,7 +34,7 @@ SQL_ENTITLEMENT = "databricks-sql-access"
 
 
 class WorkspaceError(Failure):
-    def __init__(self, message: str, rule: str = "NSTX904", fix: str = "Read the log on stderr."):
+    def __init__(self, message: str, rule: str = "NSX904", fix: str = "Read the log on stderr."):
         super().__init__([error(rule, "", message, fix)], USAGE_OR_ENVIRONMENT)
 
 
@@ -173,7 +173,7 @@ class DatabricksCli:
                 raise WorkspaceError(
                     f"The SQL warehouse {warehouse} didn't finish a Test's statement in"
                     f" {STATEMENT_TIMEOUT}.",
-                    fix="Check the warehouse is running, then run `nstx test` again.",
+                    fix="Check the warehouse is running, then run `nsx test` again.",
                 )
             time.sleep(POLL_SECONDS)
             path = f"/api/2.0/sql/statements/{ran['statement_id']}"
@@ -194,7 +194,7 @@ class DatabricksCli:
                 raise WorkspaceError(
                     "The identity Nimblestax runs as can't use Databricks SQL, so it can't run"
                     " Tests.",
-                    "NSTX925",
+                    "NSX925",
                     f"Ask a workspace admin to give it the `{SQL_ENTITLEMENT}` entitlement, and"
                     " `CAN USE` on the SQL warehouse Tests run on. For CI, that's the Development"
                     " Environment's deploying identity.",
@@ -271,7 +271,7 @@ def _start(command: list[str], package: Path | None, **streams: Any) -> subproce
     except FileNotFoundError as failure:
         raise WorkspaceError(
             f"Nimblestax can't run the Databricks CLI at {command[0]}: {failure.strerror}.",
-            "NSTX903",
+            "NSX903",
             f"Point {pinned_cli.OVERRIDE} at a Databricks CLI, or unset it so Nimblestax downloads"
             " its own.",
         ) from failure

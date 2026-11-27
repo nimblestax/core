@@ -5,7 +5,7 @@ generated: true
 nimblestax_version: 0.1.0
 ---
 
-A file with `kind: model`, at version 1. `nstx schema model` prints the same fields from the Nimblestax you installed.
+A file with `kind: model`, at version 1. `nsx schema model` prints the same fields from the Nimblestax you installed.
 
 ## Fields
 
@@ -15,7 +15,7 @@ A file with `kind: model`, at version 1. `nstx schema model` prints the same fie
 | `version` | `1` | yes |  | The schema version of this Kind. |
 | `sql` | string | yes |  | The SQL file, in the same folder as this file. |
 | `owner` | string | no | `null` | Who answers for this table: a team or a person, such as `sales-analytics`. Nothing checks or uses it yet, and it doesn't set the table's owner in Unity Catalog. |
-| `tests` | list of a mapping with one of `unique`, `row_count`, `references` | no | `[]` | The Tests `nstx test` runs on this model's table in a Preview Environment. |
+| `tests` | list of a mapping with one of `unique`, `row_count`, `references` | no | `[]` | The Tests `nsx test` runs on this model's table in a Preview Environment. |
 | `tests[].unique` | list of string | yes |  | The columns that together hold a different value in each row. |
 | `tests[].row_count` | object | yes |  | How many rows the table may have. |
 | `tests[].row_count.min` | integer | no | `1` | The fewest rows the table may have. |

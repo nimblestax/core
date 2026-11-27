@@ -20,7 +20,7 @@ GENERATED = "build/src/sales/gold/fct_orders.sql"
 runner = CliRunner()
 
 
-def nstx(project: Path, *args: str):
+def nsx(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -36,9 +36,9 @@ def write_model(project: Path, query: str) -> None:
 
 def compiled(project: Path) -> tuple[str, str]:
     """The SQL printed for dev, and the same Model in the Build Package."""
-    printed = nstx(project, "compile", "--env", "dev")
+    printed = nsx(project, "compile", "--env", "dev")
     assert printed.exit_code == 0, printed.output
-    assert nstx(project, "compile").exit_code == 0
+    assert nsx(project, "compile").exit_code == 0
     return printed.stdout, (project / GENERATED).read_text()
 
 
@@ -108,7 +108,7 @@ def test_a_placeholder_in_a_hint_is_escaped(project: Path):
 def test_a_placeholder_that_is_not_in_a_string_or_comment_never_crashes_compile(project: Path):
     write_model(project, "SELECT `${env}`, ${nope} FROM sales.silver.orders")
 
-    result = nstx(project, "compile", "--env", "dev", "--json")
+    result = nsx(project, "compile", "--env", "dev", "--json")
 
     assert result.exit_code == 0, result.output
     assert "SELECT `${env}`, ${nope} FROM dev_sales.silver.orders" in result.stdout
@@ -117,11 +117,11 @@ def test_a_placeholder_that_is_not_in_a_string_or_comment_never_crashes_compile(
 def test_a_placeholder_in_a_raw_string_fails_validate_with_its_own_rule(project: Path):
     write_model(project, "SELECT order_id,\n  r'${env}' AS x\nFROM sales.silver.orders")
 
-    result = nstx(project, "validate", "--json")
+    result = nsx(project, "validate", "--json")
 
     assert result.exit_code == 1, result.output
     [failure] = json.loads(result.stdout)["diagnostics"]
-    assert failure["rule"] == "NSTX207"
+    assert failure["rule"] == "NSX207"
     assert failure["name"] == "raw-string-placeholder"
     assert failure["file"] == MODEL_SQL
     assert failure["line"] == 2
@@ -132,12 +132,12 @@ def test_a_placeholder_in_a_raw_string_fails_validate_with_its_own_rule(project:
 def test_a_raw_string_without_a_placeholder_validates(project: Path):
     write_model(project, r"SELECT r'C:\path $ {x}' AS x FROM sales.silver.orders")
 
-    assert nstx(project, "validate").exit_code == 0
+    assert nsx(project, "validate").exit_code == 0
 
 
 def test_a_raw_string_with_a_placeholder_still_compiles_without_crashing(project: Path):
     write_model(project, "SELECT r'${env}' AS x FROM sales.silver.orders")
 
-    result = nstx(project, "compile", "--env", "dev")
+    result = nsx(project, "compile", "--env", "dev")
 
     assert result.exit_code == 0, result.output

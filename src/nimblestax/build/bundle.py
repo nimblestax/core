@@ -39,7 +39,7 @@ def personal(user: str) -> Preview:
         user,
         {USER_LABEL: user},
         PREVIEW_TARGET,
-        "nstx preview down",
+        "nsx preview down",
     )
 
 
@@ -53,7 +53,7 @@ def pull_request(number: int) -> Preview:
         f"pull request {number}",
         {PULL_REQUEST_LABEL: str(number)},
         f"pull-requests/{number}",
-        f"nstx preview down --pr {number}",
+        f"nsx preview down --pr {number}",
     )
 
 # One retry survives a one-off blip. An error a retry can't fix, such as a bad row in append-only
@@ -79,7 +79,7 @@ def render(project: Project, preview: Preview | None = None) -> str:
     return yaml.safe_dump(
         {
             "bundle": {"name": platform.name},
-            # Bundle sync skips gitignored files, and `nstx init` gitignores the package.
+            # Bundle sync skips gitignored files, and `nsx init` gitignores the package.
             "sync": {"include": ["src/**"]},
             "variables": {name: {"description": name} for name in variables},
             "targets": targets,
@@ -213,7 +213,7 @@ def _upstream(project: Project, pipelines: set[str]) -> dict[str, list[str]]:
         try:
             reads = sql.reads(model.query)
         except sql.Unparseable:
-            continue  # `nstx validate` reports it, and `nstx deploy` refuses it.
+            continue  # `nsx validate` reports it, and `nsx deploy` refuses it.
         reader = f"{model.domain}_gold"
         needed = upstream.setdefault(reader, [])
         for read in sorted(reads, key=str):

@@ -23,7 +23,7 @@ columns:
 """
 
 
-def nstx(project: Path, *args: str):
+def nsx(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -44,7 +44,7 @@ def edit(project: Path, file: str, old: str, new: str) -> None:
 
 
 def failures(project: Path) -> list[dict]:
-    result = nstx(project, "validate", "--json")
+    result = nsx(project, "validate", "--json")
     assert result.exit_code == 1, result.output
     return json.loads(result.stdout)["diagnostics"]
 
@@ -70,14 +70,14 @@ def failures(project: Path) -> list[dict]:
         (MODEL, "sql: fct_orders.sql", "sql: fct_orders.txt", "sql"),
     ],
 )
-def test_a_bad_field_names_the_field_in_a_nstx106(
+def test_a_bad_field_names_the_field_in_a_nsx106(
     project: Path, file: str, old: str, new: str, field: str
 ):
     edit(project, file, old, new)
 
     diagnostics = failures(project)
 
-    assert {d["rule"] for d in diagnostics} == {"NSTX106"}, diagnostics
+    assert {d["rule"] for d in diagnostics} == {"NSX106"}, diagnostics
     assert any(d["message"].startswith(f"{field}: ") for d in diagnostics), diagnostics
     assert all(d["file"] == file for d in diagnostics)
 
@@ -87,7 +87,7 @@ def test_a_seed_column_name_that_is_not_an_identifier_is_named(project: Path):
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "NSTX106"
+    assert diagnostic["rule"] == "NSX106"
     assert diagnostic["message"].startswith("columns.vat rate")
 
 

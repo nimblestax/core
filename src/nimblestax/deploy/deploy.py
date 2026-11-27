@@ -1,4 +1,4 @@
-"""`nstx deploy`: ships one Environment and refreshes it."""
+"""`nsx deploy`: ships one Environment and refreshes it."""
 
 from datetime import datetime
 from pathlib import Path
@@ -86,13 +86,13 @@ def refresh_failure(message: str) -> Diagnostic:
             " yet, deploy without the rule so bronze picks up the column, then add the rule back."
             f" See {RECOVERY_GUIDE}."
         )
-        return error("NSTX906", "", message, fix)
+        return error("NSX906", "", message, fix)
     if "EXPECTATION_VIOLATION" in message:
         fix = (
             "The row that broke the rule stays in bronze, so every refresh fails on it again."
             " Correct the rule, or change its `action` to `quarantine` or `warn`, then deploy."
             f" See {RECOVERY_GUIDE}."
         )
-        return error("NSTX907", "", message, fix)
+        return error("NSX907", "", message, fix)
     fix = "Fix the cause, then deploy again. The pipeline's event log in the workspace has more."
-    return error("NSTX908", "", message, fix)
+    return error("NSX908", "", message, fix)

@@ -72,10 +72,10 @@ def _commit(root: Path) -> str | None:
 
 def _not_a_package(package: Path) -> Diagnostic:
     return error(
-        "NSTX917",
+        "NSX917",
         "",
         f"{package} isn't a Build Package: it has no `{RECORD}`.",
-        "Pass the folder `nstx compile` wrote, such as `build`, or the artifact CI downloaded"
+        "Pass the folder `nsx compile` wrote, such as `build`, or the artifact CI downloaded"
         " from the run that built it.",
     )
 
@@ -83,10 +83,10 @@ def _not_a_package(package: Path) -> Diagnostic:
 def _changed(package: Path, built: dict[str, str], found: dict[str, str]) -> Diagnostic:
     differ = sorted(path for path in {*built, *found} if built.get(path) != found.get(path))
     return error(
-        "NSTX918",
+        "NSX918",
         "",
         f"{package} isn't the Build Package that was built. These files differ from its"
         f" `{RECORD}`: {', '.join(differ) or RECORD}.",
-        "Deploy the package as `nstx compile` wrote it. To change what it holds, change the"
+        "Deploy the package as `nsx compile` wrote it. To change what it holds, change the"
         " project and build a new one.",
     )

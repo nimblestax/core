@@ -1,4 +1,4 @@
-"""`nstx validate --platform`: the platform objects a project needs exist in its workspace."""
+"""`nsx validate --platform`: the platform objects a project needs exist in its workspace."""
 
 import json
 from datetime import datetime
@@ -33,7 +33,7 @@ class FakeUnityCatalog:
         return self.schemas_by_catalog[catalog]
 
 
-def nstx(project: Path, *args: str):
+def nsx(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -45,7 +45,7 @@ def project(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def workspace(monkeypatch: pytest.MonkeyPatch) -> FakeUnityCatalog:
-    """Everything `nstx init` lists for dev, until a test takes something away."""
+    """Everything `nsx init` lists for dev, until a test takes something away."""
     fake = FakeUnityCatalog({"dev_sales": {"bronze", "silver", "gold"}})
     monkeypatch.setattr(cli, "DatabricksCli", lambda: fake)
     return fake
@@ -54,20 +54,20 @@ def workspace(monkeypatch: pytest.MonkeyPatch) -> FakeUnityCatalog:
 def test_a_missing_catalog_fails_with_a_rule_naming_it(project: Path, workspace: FakeUnityCatalog):
     del workspace.schemas_by_catalog["dev_sales"]
 
-    result = nstx(project, "validate", "--platform", "--json")
+    result = nsx(project, "validate", "--platform", "--json")
 
     assert result.exit_code == 1, result.output
     envelope = json.loads(result.stdout)
     assert envelope["ok"] is False
     [diagnostic] = envelope["diagnostics"]
-    assert diagnostic["rule"] == "NSTX301"
+    assert diagnostic["rule"] == "NSX301"
     assert "dev_sales" in diagnostic["message"]
 
 
 def test_plain_validate_makes_no_workspace_call(project: Path, workspace: FakeUnityCatalog):
     del workspace.schemas_by_catalog["dev_sales"]
 
-    result = nstx(project, "validate", "--json")
+    result = nsx(project, "validate", "--json")
 
     assert result.exit_code == 0, result.output
     assert workspace.calls == []
@@ -76,11 +76,11 @@ def test_plain_validate_makes_no_workspace_call(project: Path, workspace: FakeUn
 def test_a_missing_schema_fails_with_a_rule_naming_it(project: Path, workspace: FakeUnityCatalog):
     workspace.schemas_by_catalog["dev_sales"] = {"bronze", "gold"}
 
-    result = nstx(project, "validate", "--platform", "--json")
+    result = nsx(project, "validate", "--platform", "--json")
 
     assert result.exit_code == 1, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX302"
+    assert diagnostic["rule"] == "NSX302"
     assert "dev_sales.silver" in diagnostic["message"]
 
 
@@ -101,7 +101,7 @@ def test_env_checks_that_environment_in_its_own_workspace(
     add_prod(project, PROD_HOST)
     workspace.schemas_by_catalog = {"prod_sales": {"bronze", "silver", "gold"}}
 
-    result = nstx(project, "validate", "--platform", "--env", "prod", "--json")
+    result = nsx(project, "validate", "--platform", "--env", "prod", "--json")
 
     assert result.exit_code == 0, result.output
     assert workspace.calls == [
@@ -118,7 +118,7 @@ def test_prod_in_a_shared_or_its_own_workspace_validates_with_no_warning(
     # table, and its identities and grants are nothing Nimblestax checks.
     add_prod(project, host)
 
-    result = nstx(project, "validate", "--json")
+    result = nsx(project, "validate", "--json")
 
     assert json.loads(result.stdout)["diagnostics"] == []
 
@@ -164,9 +164,9 @@ def test_the_generated_ci_checks_the_platform_as_dev_before_anything_else(projec
     pull_request = (workflows / "nimblestax-pull-request.yaml").read_text()
     merge = (workflows / "nimblestax-merge.yaml").read_text()
 
-    assert "nstx validate --platform --env dev" in pull_request
-    assert "nstx validate --platform --env dev" in merge
-    assert merge.index("nstx validate --platform") < merge.index("nstx deploy")
+    assert "nsx validate --platform --env dev" in pull_request
+    assert "nsx validate --platform --env dev" in merge
+    assert merge.index("nsx validate --platform") < merge.index("nsx deploy")
     # The check signs in, so the pull request job needs dev's identity.
     assert "id-token: write" in pull_request
     assert "environment: dev" in pull_request
@@ -199,11 +199,11 @@ def test_the_databricks_cli_lists_catalogs_and_schemas_in_the_environments_works
     monkeypatch.setenv(pinned_cli.OVERRIDE, str(script))
     monkeypatch.setenv("DATABRICKS_HOST", "https://somewhere-else.cloud.databricks.com")
 
-    result = nstx(project, "validate", "--platform", "--json")
+    result = nsx(project, "validate", "--platform", "--json")
 
     assert result.exit_code == 1, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX302"
+    assert diagnostic["rule"] == "NSX302"
     assert "dev_sales.silver" in diagnostic["message"]
     calls = (cli_folder / "calls").read_text().splitlines()
     assert f"{HOST} catalogs list --output json" in calls
@@ -211,11 +211,11 @@ def test_the_databricks_cli_lists_catalogs_and_schemas_in_the_environments_works
 
 
 def test_env_without_platform_is_a_usage_error(project: Path, workspace: FakeUnityCatalog):
-    result = nstx(project, "validate", "--env", "dev", "--json")
+    result = nsx(project, "validate", "--env", "dev", "--json")
 
     assert result.exit_code == 2, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX901"
+    assert diagnostic["rule"] == "NSX901"
     assert "--platform" in diagnostic["fix"]
 
 
@@ -253,7 +253,7 @@ def test_the_developer_group_with_its_four_grants_on_dev_validates(
 ):
     name_developers(project)
 
-    result = nstx(project, "validate", "--platform", "--json")
+    result = nsx(project, "validate", "--platform", "--json")
 
     assert result.exit_code == 0, result.output
     assert ("privileges", HOST, "dev_sales", "data-engineers") in granted.calls
@@ -266,11 +266,11 @@ def test_a_missing_developer_grant_fails_with_the_sql_that_grants_it(
     name_developers(project)
     granted.granted["dev_sales"] = ALL_FOUR - {missing}
 
-    result = nstx(project, "validate", "--platform", "--json")
+    result = nsx(project, "validate", "--platform", "--json")
 
     assert result.exit_code == 1, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX303"
+    assert diagnostic["rule"] == "NSX303"
     assert "data-engineers" in diagnostic["message"]
     assert "dev_sales" in diagnostic["message"]
     privilege = missing.replace("_", " ")
@@ -281,7 +281,7 @@ def test_all_privileges_holds_every_developer_grant(project: Path, granted: Gran
     name_developers(project)
     granted.granted["dev_sales"] = {"ALL_PRIVILEGES"}
 
-    result = nstx(project, "validate", "--platform", "--json")
+    result = nsx(project, "validate", "--platform", "--json")
 
     assert result.exit_code == 0, result.output
 
@@ -293,14 +293,14 @@ def test_developer_grants_are_checked_only_in_the_development_environment(
     name_developers(project)
     granted.schemas_by_catalog = {"prod_sales": {"bronze", "silver", "gold"}}
 
-    result = nstx(project, "validate", "--platform", "--env", "prod", "--json")
+    result = nsx(project, "validate", "--platform", "--env", "prod", "--json")
 
     assert result.exit_code == 0, result.output
     assert not [call for call in granted.calls if call[0] == "privileges"]
 
 
 def test_without_a_developer_group_no_grant_is_read(project: Path, granted: GrantedUnityCatalog):
-    result = nstx(project, "validate", "--platform", "--json")
+    result = nsx(project, "validate", "--platform", "--json")
 
     assert result.exit_code == 0, result.output
     assert not [call for call in granted.calls if call[0] == "privileges"]
@@ -329,11 +329,11 @@ def test_the_databricks_cli_reads_the_developer_groups_effective_grants(
     )
     monkeypatch.setenv(pinned_cli.OVERRIDE, str(script))
 
-    result = nstx(project, "validate", "--platform", "--json")
+    result = nsx(project, "validate", "--platform", "--json")
 
     assert result.exit_code == 1, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX303"
+    assert diagnostic["rule"] == "NSX303"
     assert "CREATE SCHEMA, READ VOLUME" in diagnostic["message"]
     calls = (cli_folder / "calls").read_text().splitlines()
     assert (

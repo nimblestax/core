@@ -84,7 +84,7 @@ def _iso(moment: datetime) -> str:
 def _not_removed(copies: str, failure: WorkspaceError) -> Diagnostic:
     [cause] = failure.diagnostics
     return warning(
-        "NSTX919",
+        "NSX919",
         "",
         f"The deploy succeeded, but Nimblestax couldn't remove old Deployment Manifest copies"
         f" from {copies}: {cause.message}",

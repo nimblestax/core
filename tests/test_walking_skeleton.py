@@ -51,7 +51,7 @@ class FakeWorkspace:
             raise WorkspaceError(f"{call[0]} failed")
 
 
-def nstx(project: Path, *args: str):
+def nsx(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -63,7 +63,7 @@ def project(tmp_path: Path) -> Path:
 
 
 def test_a_freshly_initialised_project_validates_with_no_workspace(project: Path):
-    result = nstx(project, "validate", "--json")
+    result = nsx(project, "validate", "--json")
 
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.stdout)
@@ -73,7 +73,7 @@ def test_a_freshly_initialised_project_validates_with_no_workspace(project: Path
 
 
 def test_generated_code_uses_placeholders_and_never_real_names(project: Path):
-    result = nstx(project, "compile")
+    result = nsx(project, "compile")
 
     assert result.exit_code == 0, result.output
     gold = (project / "build/src/sales/gold/fct_orders.sql").read_text()
@@ -83,7 +83,7 @@ def test_generated_code_uses_placeholders_and_never_real_names(project: Path):
 
 
 def test_compile_for_an_environment_prints_runnable_sql(project: Path):
-    result = nstx(project, "compile", "--env", "dev")
+    result = nsx(project, "compile", "--env", "dev")
 
     assert result.exit_code == 0, result.output
     assert "CREATE OR REFRESH MATERIALIZED VIEW dev_sales.gold.fct_orders" in result.stdout
@@ -92,7 +92,7 @@ def test_compile_for_an_environment_prints_runnable_sql(project: Path):
 
 
 def test_a_source_lands_in_bronze_and_silver(project: Path):
-    nstx(project, "compile")
+    nsx(project, "compile")
 
     ingest = (project / "build/src/sales/ingest/orders.sql").read_text()
     assert "STREAMING TABLE ${catalog_sales_bronze}.${schema_sales_bronze}.orders" in ingest
@@ -108,32 +108,32 @@ def test_every_real_name_follows_the_platform_contracts_naming_style(project: Pa
         contract.read_text().replace("style: domain-catalogs", "style: layer-catalogs")
     )
 
-    result = nstx(project, "compile", "--env", "dev")
+    result = nsx(project, "compile", "--env", "dev")
 
     assert "dev_gold.sales.fct_orders" in result.stdout
     assert "dev_sales" not in result.stdout.replace("/Volumes/dev_sales", "")
 
 
 def test_nothing_in_the_generated_code_refers_to_nimblestax(project: Path):
-    nstx(project, "compile")
+    nsx(project, "compile")
 
     generated = [f for f in (project / "build/src").rglob("*") if f.is_file()]
     assert generated
     texts = [f.read_text().lower() for f in generated]
-    assert not any(name in text for text in texts for name in ("nimblestax", "nstx"))
+    assert not any(name in text for text in texts for name in ("nimblestax", "nsx"))
 
 
 def test_a_model_reading_an_unknown_logical_name_fails_with_a_rule_id(project: Path):
     model = project / "domains/sales/models/gold/fct_orders.sql"
     model.write_text("SELECT * FROM sales.silver.nonexistent")
 
-    result = nstx(project, "validate", "--json")
+    result = nsx(project, "validate", "--json")
 
     assert result.exit_code == 1
     envelope = json.loads(result.stdout)
     assert envelope["ok"] is False
     [diagnostic] = envelope["diagnostics"]
-    assert diagnostic["rule"] == "NSTX201"
+    assert diagnostic["rule"] == "NSX201"
     assert diagnostic["file"] == "domains/sales/models/gold/fct_orders.sql"
     assert "sales.silver.nonexistent" in diagnostic["message"]
     assert diagnostic["fix"]
@@ -142,7 +142,7 @@ def test_a_model_reading_an_unknown_logical_name_fails_with_a_rule_id(project: P
 def test_compile_writes_a_package_databricks_accepts(tmp_path: Path, stub_workspace: str):
     runner.invoke(app, ["init", str(tmp_path), "--host", stub_workspace])
 
-    assert nstx(tmp_path, "compile").exit_code == 0
+    assert nsx(tmp_path, "compile").exit_code == 0
 
     environment = {
         "PATH": os.environ["PATH"],
@@ -205,8 +205,8 @@ def test_github_ci_files_are_thin_calls_to_nimblestax_with_no_secret(project: Pa
     pull_request = (project / ".github/workflows/nimblestax-pull-request.yaml").read_text()
     merge = (project / ".github/workflows/nimblestax-merge.yaml").read_text()
 
-    assert "nstx validate" in pull_request
-    assert "nstx deploy --env dev" in merge
+    assert "nsx validate" in pull_request
+    assert "nsx deploy --env dev" in merge
     assert "id-token: write" in merge
     assert "DATABRICKS_AUTH_TYPE: github-oidc" in merge
     assert "secrets." not in pull_request + merge
@@ -225,7 +225,7 @@ def test_github_ci_files_install_no_databricks_cli_because_nimblestax_brings_its
 
 
 def test_generated_code_is_uploaded_even_though_init_gitignores_the_package(project: Path):
-    nstx(project, "compile")
+    nsx(project, "compile")
 
     assert "build/" in (project / ".gitignore").read_text()
     package = yaml.safe_load((project / "build/databricks.yaml").read_text())
@@ -233,10 +233,10 @@ def test_generated_code_is_uploaded_even_though_init_gitignores_the_package(proj
 
 
 def test_a_deleted_model_leaves_the_package(project: Path):
-    nstx(project, "compile")
+    nsx(project, "compile")
     (project / "domains/sales/models/gold/fct_orders.sql").unlink()
     (project / "domains/sales/models/gold/fct_orders.yaml").unlink()
 
-    nstx(project, "compile")
+    nsx(project, "compile")
 
     assert not (project / "build/src/sales/gold/fct_orders.sql").exists()

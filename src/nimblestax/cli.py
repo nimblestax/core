@@ -1,4 +1,4 @@
-"""The `nstx` command. Commands stay thin and work on one loaded Project."""
+"""The `nsx` command. Commands stay thin and work on one loaded Project."""
 
 import subprocess
 import sys
@@ -54,8 +54,8 @@ class ReportingGroup(TyperGroup):
                 raise
             stopped = getattr(problem, "ctx", None)
             label = stopped.info_name if stopped not in (None, ctx) else None
-            fix = f"Run `nstx {label} --help`." if label else "Run `nstx --help`."
-            found = error("NSTX901", "", problem.format_message(), fix)
+            fix = f"Run `nsx {label} --help`." if label else "Run `nsx --help`."
+            found = error("NSX901", "", problem.format_message(), fix)
             _report_failure(label or "usage", True, Failure([found], USAGE_OR_ENVIRONMENT))
 
 
@@ -68,7 +68,7 @@ app = typer.Typer(cls=ReportingGroup, no_args_is_help=True, add_completion=False
 def _print_versions(asked: bool) -> None:
     if not asked:
         return
-    typer.echo(f"nstx {version('nimblestax')}")
+    typer.echo(f"nsx {version('nimblestax')}")
     try:
         typer.echo(f"Databricks CLI {pinned_cli.running_version()}")
     except Failure as failure:
@@ -101,7 +101,7 @@ class Skills(StrEnum):
 
 
 class NamingStyle(StrEnum):
-    """Matches `names.NAMING_STYLES`, in the order `nstx init` offers them."""
+    """Matches `names.NAMING_STYLES`, in the order `nsx init` offers them."""
 
     domain_catalogs = "domain-catalogs"
     layer_catalogs = "layer-catalogs"
@@ -147,7 +147,7 @@ def callbacks() -> dict[str, Any]:
     found: dict[str, Any] = {}
     for prefix, typed in [("", app), *((f"{name} ", typed) for name, typed in GROUPS.items())]:
         for info in typed.registered_commands:
-            if info.name:  # Only `nstx databricks` has none, and it prints no result.
+            if info.name:  # Only `nsx databricks` has none, and it prints no result.
                 found[prefix + info.name] = info.callback
     return found
 
@@ -205,7 +205,7 @@ def _report_failure(label: str, as_json: bool, failure: Failure) -> NoReturn:
 
 def _unexpected(problem: Exception) -> Failure:
     found = error(
-        "NSTX905",
+        "NSX905",
         "",
         f"Nimblestax stopped unexpectedly: {problem}",
         "Read the traceback on stderr. If your machine isn't the cause, report a bug.",
@@ -217,7 +217,7 @@ def _require_environment(loaded: project.Project, env: str) -> None:
     known = sorted(loaded.platform.hosts)
     if env not in known:
         found = error(
-            "NSTX902",
+            "NSX902",
             platform.FILE_NAME,
             f"`{env}` isn't an Environment in this project.",
             f"Use one of: {', '.join(known)}.",
@@ -330,9 +330,9 @@ def init(
 
 # An example ships with its Naming Style, so the docs can show its files as they are.
 _EXAMPLE_WITH_NAMING_STYLE = error(
-    "NSTX901",
+    "NSX901",
     "",
-    "`nstx init --example` writes the example with the Naming Style it ships with, so it takes"
+    "`nsx init --example` writes the example with the Naming Style it ships with, so it takes"
     " no `--naming-style`.",
     "Remove `--naming-style`, or leave out `--example` to start a new project in that style.",
 )
@@ -355,7 +355,7 @@ def _volumes(loaded: project.Project) -> list[str]:
 def _uploads(loaded: project.Project, folder: Path) -> list[str]:
     """For each Source with sample data, the command that lands day 1 at its path in dev."""
     return [
-        f"nstx databricks fs cp --recursive {(FIRST_DAY / source.name).as_posix()}"
+        f"nsx databricks fs cp --recursive {(FIRST_DAY / source.name).as_posix()}"
         f" dbfs:{source.path_in(DEV)}"
         for source in loaded.sources
         if (folder / FIRST_DAY / source.name).is_dir()
@@ -460,11 +460,11 @@ def validate(
 
 # Plain `validate` is the same in every Environment, so `--env` alone would change nothing.
 _ENV_WITHOUT_PLATFORM = error(
-    "NSTX901",
+    "NSX901",
     "",
-    "`nstx validate --env` names the Environment `--platform` checks, and `--platform` is"
-    " missing. Without it, `nstx validate` reads no workspace.",
-    "Add `--platform`, such as `nstx validate --platform --env dev`, or remove `--env`.",
+    "`nsx validate --env` names the Environment `--platform` checks, and `--platform` is"
+    " missing. Without it, `nsx validate` reads no workspace.",
+    "Add `--platform`, such as `nsx validate --platform --env dev`, or remove `--env`.",
 )
 
 
@@ -566,7 +566,7 @@ def deploy(
         Path | None,
         typer.Option(
             "--package",
-            help="The Build Package to deploy, as `nstx compile` wrote it. It is deployed as it"
+            help="The Build Package to deploy, as `nsx compile` wrote it. It is deployed as it"
             " is, never rebuilt. Left out, the project is validated and built first.",
             show_default=False,
         ),
@@ -587,11 +587,11 @@ def deploy(
 
 # `--env` is optional on the command line only so this fix, not a usage message, reaches the user.
 _DEPLOY_WITHOUT_ENV = error(
-    "NSTX901",
+    "NSX901",
     "",
-    "`nstx deploy` needs `--env`, so every deploy says where it goes. It never uses the"
+    "`nsx deploy` needs `--env`, so every deploy says where it goes. It never uses the"
     " default Environment.",
-    "Add the Environment to deploy, such as `nstx deploy --env dev`.",
+    "Add the Environment to deploy, such as `nsx deploy --env dev`.",
 )
 
 
@@ -644,12 +644,10 @@ def preview(
     schemas, warnings = previews.preview(loaded, DatabricksCli(), pull_request)
     if pull_request is None:
         opening = "Deployed your working tree to your Preview Environment, in:"
-        closing = "Remove it with `nstx preview down` when you're done."
+        closing = "Remove it with `nsx preview down` when you're done."
     else:
         opening = f"Deployed pull request {pull_request} to its Preview Environment, in:"
-        closing = (
-            f"`nstx preview down --pr {pull_request}` removes it when the pull request closes."
-        )
+        closing = f"`nsx preview down --pr {pull_request}` removes it when the pull request closes."
     lines = [opening, *(f"  {schema}" for schema in schemas), closing]
     return Outcome("\n".join(lines), Previewed(schemas=schemas), warnings)
 
@@ -658,12 +656,12 @@ class TestRun(BaseModel):
     model: str = Field(
         description="The Gold Model's Logical Name, such as `sales.gold.fct_orders`."
     )
-    test: str = Field(description="The Test, as `nstx test` names it, such as `unique(order_id)`.")
+    test: str = Field(description="The Test, as `nsx test` names it, such as `unique(order_id)`.")
 
 
 class Tested(BaseModel):
     tests: list[TestRun] = Field(
-        description="Every Test that ran, and passed. When one fails, `nstx test` exits 1 with a"
+        description="Every Test that ran, and passed. When one fails, `nsx test` exits 1 with a"
         " diagnostic for each failure instead."
     )
 
@@ -675,7 +673,7 @@ def test(
         typer.Option(
             "--pr",
             min=1,
-            help="Test this pull request's Preview Environment. CI passes it, after `nstx preview"
+            help="Test this pull request's Preview Environment. CI passes it, after `nsx preview"
             " --pr`. Left out, Nimblestax tests your own.",
             show_default=False,
         ),

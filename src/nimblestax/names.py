@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 PLACEHOLDER = re.compile(r"\$\{(\w+)\}")
 
-# Each Naming Style's catalog and schema patterns, in the order `nstx init` offers them.
+# Each Naming Style's catalog and schema patterns, in the order `nsx init` offers them.
 NAMING_STYLES = {
     "domain-catalogs": ("{env}_{domain}", "{layer}"),
     "layer-catalogs": ("{env}_{layer}", "{domain}"),

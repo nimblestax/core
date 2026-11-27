@@ -46,7 +46,7 @@ def test_init_writes_the_day_folders_and_prints_what_to_create_and_how_to_upload
         ]
     assert "  Volumes:\n    dev_sales.bronze.landing\n" in result.stdout
     assert (
-        "  nstx databricks fs cp --recursive data/day-1/orders"
+        "  nsx databricks fs cp --recursive data/day-1/orders"
         " dbfs:/Volumes/dev_sales/bronze/landing/orders\n"
     ) in result.stdout
 
@@ -67,7 +67,7 @@ def test_an_example_takes_no_naming_style(tmp_path: Path):
 
     assert result.exit_code == 2
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX901"
+    assert diagnostic["rule"] == "NSX901"
     assert not (tmp_path / "nimblestax.platform.yaml").exists()
 
 
@@ -94,7 +94,7 @@ def test_an_unknown_example_fails_with_a_rule_that_lists_the_examples(tmp_path: 
 
     assert result.exit_code == 2
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX916"
+    assert diagnostic["rule"] == "NSX916"
     assert "kettle" in diagnostic["fix"]
     assert not (tmp_path / "nimblestax.platform.yaml").exists()
 

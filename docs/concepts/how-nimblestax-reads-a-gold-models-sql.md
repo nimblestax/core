@@ -3,7 +3,7 @@ title: How Nimblestax reads a gold model's SQL
 description: How Nimblestax finds the tables a gold model reads, why `STREAM(...)` makes it a streaming table, what a stream may read, and the SQL Nimblestax can't read yet.
 ---
 
-A gold model is a SQL file. Nimblestax parses it to find every table it reads, and everything else follows from those reads: the real table names in each environment, which pipelines wait for which, and what `nstx validate` checks.
+A gold model is a SQL file. Nimblestax parses it to find every table it reads, and everything else follows from those reads: the real table names in each environment, which pipelines wait for which, and what `nsx validate` checks.
 
 ## Reads are logical names, found by parsing
 
@@ -16,13 +16,13 @@ JOIN sales.silver.countries AS c
   ON o.country = c.code
 ```
 
-Nimblestax parses the query and takes each table it reads, in `FROM`, `JOIN` and subqueries. A CTE's name isn't a table, so it isn't a read. Nimblestax never guesses. Anything that might read a table but isn't a three-part logical name fails `nstx validate`:
+Nimblestax parses the query and takes each table it reads, in `FROM`, `JOIN` and subqueries. A CTE's name isn't a table, so it isn't a read. Nimblestax never guesses. Anything that might read a table but isn't a three-part logical name fails `nsx validate`:
 
-- a one- or two-part name that isn't a CTE fails with [`NSTX201`](../reference/rules/nstx201.md)
-- a real table name, such as `prod_sales.silver.orders`, fails with [`NSTX205`](../reference/rules/nstx205.md)
-- a name built as the query runs, such as `IDENTIFIER(...)`, fails with [`NSTX204`](../reference/rules/nstx204.md)
-- a read of files, such as `read_files(...)`, fails with [`NSTX206`](../reference/rules/nstx206.md)
-- SQL Nimblestax can't parse fails with [`NSTX203`](../reference/rules/nstx203.md)
+- a one- or two-part name that isn't a CTE fails with [`NSX201`](../reference/rules/nsx201.md)
+- a real table name, such as `prod_sales.silver.orders`, fails with [`NSX205`](../reference/rules/nsx205.md)
+- a name built as the query runs, such as `IDENTIFIER(...)`, fails with [`NSX204`](../reference/rules/nsx204.md)
+- a read of files, such as `read_files(...)`, fails with [`NSX206`](../reference/rules/nsx206.md)
+- SQL Nimblestax can't parse fails with [`NSX203`](../reference/rules/nsx203.md)
 
 So every table a gold model reads shows in review, and the same SQL works in every environment.
 
@@ -51,16 +51,16 @@ A stream reads only new rows, so it may read only a table that rows are added to
 
 | A gold model may stream from | It may not stream from |
 | --- | --- |
-| silver without `keys` | silver with `keys`, which upserts change in place: [`NSTX211`](../reference/rules/nstx211.md) |
-| a quarantine table | a seed, which is a materialized view: [`NSTX212`](../reference/rules/nstx212.md) |
-| a gold model that streams | a gold model that doesn't stream, which is a materialized view: [`NSTX212`](../reference/rules/nstx212.md) |
+| silver without `keys` | silver with `keys`, which upserts change in place: [`NSX211`](../reference/rules/nsx211.md) |
+| a quarantine table | a seed, which is a materialized view: [`NSX212`](../reference/rules/nsx212.md) |
+| a gold model that streams | a gold model that doesn't stream, which is a materialized view: [`NSX212`](../reference/rules/nsx212.md) |
 
-Each of these would otherwise fail in the pipeline, after a deploy. `nstx validate` catches them before.
+Each of these would otherwise fail in the pipeline, after a deploy. `nsx validate` catches them before.
 
 ## Known gaps
 
-Databricks accepts some SQL that Nimblestax can't parse yet. Each of these fails `nstx validate`, so none reaches a deploy.
+Databricks accepts some SQL that Nimblestax can't parse yet. Each of these fails `nsx validate`, so none reaches a deploy.
 
-- **`WATERMARK ... DELAY OF`** fails with [`NSTX203`](../reference/rules/nstx203.md). A gold model can't do a watermarked streaming aggregation for now.
-- **`STREAM x` without brackets**, as in `JOIN STREAM sales.silver.orders`, fails with [`NSTX203`](../reference/rules/nstx203.md). Write `STREAM(sales.silver.orders)`.
-- **`window(...)` as a table function** fails with [`NSTX206`](../reference/rules/nstx206.md), because Nimblestax can't see what it reads.
+- **`WATERMARK ... DELAY OF`** fails with [`NSX203`](../reference/rules/nsx203.md). A gold model can't do a watermarked streaming aggregation for now.
+- **`STREAM x` without brackets**, as in `JOIN STREAM sales.silver.orders`, fails with [`NSX203`](../reference/rules/nsx203.md). Write `STREAM(sales.silver.orders)`.
+- **`window(...)` as a table function** fails with [`NSX206`](../reference/rules/nsx206.md), because Nimblestax can't see what it reads.

@@ -131,7 +131,7 @@ def test_an_archive_whose_checksum_does_not_match_is_refused_and_nothing_runs(
 
     assert result.exit_code == 2
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX910"
+    assert diagnostic["rule"] == "NSX910"
     assert not pinned.exists()
     assert not list((pinned.parent / "cache").rglob(pinned_cli.binary_name()))
 
@@ -203,7 +203,7 @@ def test_a_cli_named_by_nimblestax_databricks_cli_below_the_minimum_fails_and_no
 
     assert result.exit_code == 2
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX911"
+    assert diagnostic["rule"] == "NSX911"
     assert "0.200.0" in diagnostic["message"]
     assert pinned_cli.MINIMUM in diagnostic["message"]
     assert (tmp_path / "own-calls").read_text().splitlines() == ["--version"]
@@ -219,7 +219,7 @@ def test_a_cli_named_by_nimblestax_databricks_cli_that_does_not_exist_fails(
 
     assert result.exit_code == 2
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX903"
+    assert diagnostic["rule"] == "NSX903"
 
 
 def test_a_download_that_fails_says_so_with_a_rule_id(
@@ -231,7 +231,7 @@ def test_a_download_that_fails_says_so_with_a_rule_id(
 
     assert result.exit_code == 2
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX912"
+    assert diagnostic["rule"] == "NSX912"
     assert "404" in diagnostic["message"]
     assert not pinned.exists()
 
@@ -245,7 +245,7 @@ def test_a_platform_databricks_publishes_no_cli_for_fails_with_a_rule_id(
 
     assert result.exit_code == 2
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX913"
+    assert diagnostic["rule"] == "NSX913"
     assert pinned_cli.platform_name() in diagnostic["message"]
     assert releases.requests == []
 
@@ -313,7 +313,7 @@ def test_nimblestax_version_names_the_cli_version_it_runs(pinned: Path, releases
     result = runner.invoke(cli.app, ["--version"])
 
     assert result.exit_code == 0, result.output
-    assert result.output == f"nstx {version('nimblestax')}\nDatabricks CLI {PINNED}\n"
+    assert result.output == f"nsx {version('nimblestax')}\nDatabricks CLI {PINNED}\n"
     assert releases.requests == []
 
 

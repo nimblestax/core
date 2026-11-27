@@ -16,7 +16,7 @@ def json_schemas(kind: str) -> dict[int, dict[str, Any]]:
 
 
 def latest_schema(kind: str) -> tuple[int, dict[str, Any]]:
-    """A Kind's newest version and its JSON Schema: what `nstx schema` and its page describe."""
+    """A Kind's newest version and its JSON Schema: what `nsx schema` and its page describe."""
     return max(json_schemas(kind).items())
 
 

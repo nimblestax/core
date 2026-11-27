@@ -1,12 +1,12 @@
 ---
-title: nstx compile
+title: nsx compile
 description: Write generated code, or print it for one Environment.
 generated: true
 nimblestax_version: 0.1.0
 ---
 
 ```console
-$ nstx compile [OPTIONS]
+$ nsx compile [OPTIONS]
 ```
 
 ## Options

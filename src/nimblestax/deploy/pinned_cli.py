@@ -67,7 +67,7 @@ def _version_of(executable: Path) -> str:
         ).stdout
     except OSError as failure:  # Missing, or not something this machine can run.
         found = error(
-            "NSTX903",
+            "NSX903",
             "",
             f"{OVERRIDE} names {executable}, which Nimblestax can't run: {failure.strerror}.",
             f"Point {OVERRIDE} at a Databricks CLI, or unset it so Nimblestax downloads its own.",
@@ -85,7 +85,7 @@ def _checked(executable: Path) -> Path:
         return executable
     reported = f"is version {found}" if found else "doesn't say which version it is"
     problem = error(
-        "NSTX911",
+        "NSX911",
         "",
         f"{OVERRIDE} names {executable}, which {reported}. This Nimblestax needs {MINIMUM} or"
         " newer.",
@@ -123,7 +123,7 @@ def _install(binary: Path) -> None:
     name = platform_name()
     if name not in CHECKSUMS:
         found = error(
-            "NSTX913",
+            "NSX913",
             "",
             f"Databricks publishes no CLI for this machine, {name}.",
             f"Install a Databricks CLI yourself and point {OVERRIDE} at it.",
@@ -133,7 +133,7 @@ def _install(binary: Path) -> None:
     downloaded = _download(url)
     if hashlib.sha256(downloaded).hexdigest() != CHECKSUMS[name]:
         found = error(
-            "NSTX910",
+            "NSX910",
             "",
             f"The Databricks CLI {VERSION} downloaded from {url} doesn't match its checksum,"
             " so Nimblestax ran nothing.",
@@ -158,7 +158,7 @@ def _download(url: str) -> bytes:
             return response.read()
     except OSError as failure:  # URLError, HTTPError and timeouts are all OSErrors.
         found = error(
-            "NSTX912",
+            "NSX912",
             "",
             f"Nimblestax couldn't download the Databricks CLI {VERSION} from {url}: {failure}.",
             "Check this machine can reach github.com, through HTTPS_PROXY if it needs one."

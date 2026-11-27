@@ -1,5 +1,5 @@
 ---
-title: nstx skills
+title: nsx skills
 description: Keep the Nimblestax Skills in this project.
 generated: true
 nimblestax_version: 0.1.0
@@ -10,7 +10,7 @@ nimblestax_version: 0.1.0
 Refresh both copies of each Nimblestax Skill to this Nimblestax's version.
 
 ```console
-$ nstx skills update [OPTIONS]
+$ nsx skills update [OPTIONS]
 ```
 
 ### Options

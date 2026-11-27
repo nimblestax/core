@@ -6,14 +6,14 @@ description: Nimblestax brings its own pinned Databricks CLI, so every machine d
 Nimblestax deploys through the Databricks CLI, and it brings its own. Each Nimblestax release names one CLI version. The `databricks` on your PATH is never used, so your laptop and CI deploy the same project the same way, whichever CLI you have installed.
 
 ```console
-$ nstx --version
-nstx 0.1.0
+$ nsx --version
+nsx 0.1.0
 Databricks CLI 1.23.0
 ```
 
 ## Where it comes from
 
-The first time a command needs the CLI, Nimblestax downloads that version from Databricks' GitHub releases. It checks the archive against the checksum its release names. An archive that doesn't match is refused with [`NSTX910`](../reference/rules/nstx910.md), and nothing runs.
+The first time a command needs the CLI, Nimblestax downloads that version from Databricks' GitHub releases. It checks the archive against the checksum its release names. An archive that doesn't match is refused with [`NSX910`](../reference/rules/nsx910.md), and nothing runs.
 
 Nimblestax keeps the CLI in your cache folder, one folder per version, and reuses it after that:
 
@@ -25,14 +25,14 @@ Nimblestax keeps the CLI in your cache folder, one folder per version, and reuse
 
 Two projects on different Nimblestax versions each run their own CLI. Two runs that start at once download it once.
 
-The download honours `HTTPS_PROXY` and `NO_PROXY`. If it fails, Nimblestax reports [`NSTX912`](../reference/rules/nstx912.md).
+The download honours `HTTPS_PROXY` and `NO_PROXY`. If it fails, Nimblestax reports [`NSX912`](../reference/rules/nsx912.md).
 
 ## Run it yourself
 
-[`nstx databricks`](../reference/commands/databricks.md) runs the same CLI, with your arguments passed through, so you don't need a CLI of your own:
+[`nsx databricks`](../reference/commands/databricks.md) runs the same CLI, with your arguments passed through, so you don't need a CLI of your own:
 
 ```console
-$ nstx databricks auth describe
+$ nsx databricks auth describe
 ```
 
 A `databricks` command you run yourself uses your own CLI, which can be a different version and behave differently.
@@ -45,4 +45,4 @@ On a machine with no route to GitHub, install the Databricks CLI yourself and po
 $ export NIMBLESTAX_DATABRICKS_CLI=/opt/databricks/databricks
 ```
 
-Nimblestax reads its version first. A CLI older than the release supports is refused with [`NSTX911`](../reference/rules/nstx911.md), so an old CLI can't deploy your project differently.
+Nimblestax reads its version first. A CLI older than the release supports is refused with [`NSX911`](../reference/rules/nsx911.md), so an old CLI can't deploy your project differently.

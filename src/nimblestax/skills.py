@@ -74,7 +74,7 @@ def ignored(root: Path) -> list[Diagnostic]:
         if any(_git_ignores(root, path) for path in installed if (root / path).is_file()):
             warnings.append(
                 warning(
-                    "NSTX914",
+                    "NSX914",
                     folder.as_posix(),
                     f"Git ignores `{folder.as_posix()}/`, so the Nimblestax Skills in it won't be"
                     " committed.",
@@ -163,22 +163,22 @@ def _edit(file: str, local: str, text: str) -> Diagnostic:
         )
     )
     return error(
-        "NSTX915",
+        "NSX915",
         file,
         "This skill was edited since Nimblestax wrote it, so updating it would lose the edit:"
         f"\n{diff}",
         "Move your edit into a skill of your own, outside the `nimblestax-*` folders, then run"
-        " `nstx skills update` again. To replace the edit, run `nstx skills update --force`.",
+        " `nsx skills update` again. To replace the edit, run `nsx skills update --force`.",
     )
 
 
 def _drifted(file: str, name: str, written_by: str | None, installed: str) -> Diagnostic:
     by = f"Nimblestax {written_by}" if written_by else "no recorded version of Nimblestax"
     return warning(
-        "NSTX129",
+        "NSX129",
         file,
         f"`{name}` was written by {by}, but Nimblestax {installed} is installed.",
-        "Run `nstx skills update` to refresh both copies of each skill, and commit them.",
+        "Run `nsx skills update` to refresh both copies of each skill, and commit them.",
     )
 
 

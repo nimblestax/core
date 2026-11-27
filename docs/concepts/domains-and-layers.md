@@ -27,7 +27,7 @@ domains/
 
 The `layer-catalogs` [naming style](naming.md) suits this layout, because each layer gets its own catalog and each domain a schema inside it: `prod_silver.salesforce.accounts` and `prod_gold.sales.dim_account`.
 
-A domain reads its own tables freely. From other domains, it reads only silver they have exported and gold in the shared domain. See [`NSTX209`](../reference/rules/nstx209.md).
+A domain reads its own tables freely. From other domains, it reads only silver they have exported and gold in the shared domain. See [`NSX209`](../reference/rules/nsx209.md).
 
 ## Source layers: bronze and silver
 
@@ -36,7 +36,7 @@ Every source makes two tables, in two layers that are always called `bronze` and
 - Bronze keeps rows as they landed. Only its own silver reads it.
 - Silver is typed, deduplicated by key, and checked against [expectations](expectations.md). Gold models read silver.
 
-Nimblestax decides what each of these layers does, so you can't rename them, add a third or remove one. If you need another step after silver, add a model layer. `nimblestax.platform.yaml` has no field for them. A version 1 file, written by an older Nimblestax, may still list them as `sources: [bronze, silver]`, which is accepted. Any other value fails with [`NSTX125`](../reference/rules/nstx125.md).
+Nimblestax decides what each of these layers does, so you can't rename them, add a third or remove one. If you need another step after silver, add a model layer. `nimblestax.platform.yaml` has no field for them. A version 1 file, written by an older Nimblestax, may still list them as `sources: [bronze, silver]`, which is accepted. Any other value fails with [`NSX125`](../reference/rules/nsx125.md).
 
 Seeds sit in silver too.
 
@@ -60,9 +60,9 @@ Add more to shape gold for the people who use it, such as `marts` or `serving`:
 
 Each model layer is a schema in every domain, so `sales.marts.fct_orders` is a table in the `marts` schema next to `sales.gold`. A model layer adds a schema, not a pipeline: each domain still has one ingest pipeline and one gold pipeline, and the gold pipeline builds each table after the tables it reads.
 
-Model layers have no order. A gold model can read any model layer in its own domain, in either direction, so a model in `marts` can read `gold`, and a model in `gold` can read `marts`. The order you list them in changes nothing. What Nimblestax refuses is a loop, where gold models read each other and none can be built first, even when the loop crosses layers. See [`NSTX208`](../reference/rules/nstx208.md).
+Model layers have no order. A gold model can read any model layer in its own domain, in either direction, so a model in `marts` can read `gold`, and a model in `gold` can read `marts`. The order you list them in changes nothing. What Nimblestax refuses is a loop, where gold models read each other and none can be built first, even when the loop crosses layers. See [`NSX208`](../reference/rules/nsx208.md).
 
-A model layer can't be called `bronze` or `silver`. See [`NSTX126`](../reference/rules/nstx126.md).
+A model layer can't be called `bronze` or `silver`. See [`NSX126`](../reference/rules/nsx126.md).
 
 ## A gold model's folder sets its layer
 
@@ -75,7 +75,7 @@ domains/sales/models/marts/fct_orders.yaml   # sales.marts.fct_orders
 
 So a gold model's path reads as its logical name. The two files above are two tables, because they are in two layers.
 
-A file directly in `models/`, or in a first folder that isn't a model layer, fails with [`NSTX127`](../reference/rules/nstx127.md), which lists your model layers.
+A file directly in `models/`, or in a first folder that isn't a model layer, fails with [`NSX127`](../reference/rules/nsx127.md), which lists your model layers.
 
 ## Folders that only group files
 
@@ -86,4 +86,4 @@ domains/sales/sources/erp/eu/orders.yaml          # sales.silver.orders
 domains/sales/models/gold/finance/revenue.yaml    # sales.gold.revenue
 ```
 
-Because these folders carry no meaning, two files with one name in one domain's layer would be one table, and fail with [`NSTX120`](../reference/rules/nstx120.md).
+Because these folders carry no meaning, two files with one name in one domain's layer would be one table, and fail with [`NSX120`](../reference/rules/nsx120.md).

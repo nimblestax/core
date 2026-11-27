@@ -1,4 +1,4 @@
-"""`nstx preview`: a person's working tree, deployed to their own schemas in dev's catalogs."""
+"""`nsx preview`: a person's working tree, deployed to their own schemas in dev's catalogs."""
 
 import json
 import os
@@ -85,7 +85,7 @@ class FakeWorkspace:
         del self.files[path]
 
 
-def nstx(project: Path, *args: str):
+def nsx(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -111,7 +111,7 @@ def preview_target(workspace: FakeWorkspace) -> dict:
 def test_a_preview_deploys_every_table_to_the_persons_own_schemas(
     project: Path, workspace: FakeWorkspace
 ):
-    result = nstx(project, "preview", "--json")
+    result = nsx(project, "preview", "--json")
 
     assert result.exit_code == 0, result.output
     assert ("deploy", "preview") in workspace.calls
@@ -190,7 +190,7 @@ def test_databricks_accepts_the_preview_target_in_development_mode_and_dev_stays
 def test_a_sources_env_resolves_to_the_development_environment_in_a_preview(
     project: Path, workspace: FakeWorkspace
 ):
-    nstx(project, "preview")
+    nsx(project, "preview")
 
     paths = preview_target(workspace)["variables"]
     assert paths["path_sales__orders"] == "/Volumes/dev_sales/bronze/landing/orders"
@@ -199,13 +199,13 @@ def test_a_sources_env_resolves_to_the_development_environment_in_a_preview(
 def test_a_previews_generated_files_match_every_other_targets_byte_for_byte(
     project: Path, workspace: FakeWorkspace
 ):
-    nstx(project, "compile")
+    nsx(project, "compile")
     compiled = {
         path.relative_to(project / "build"): path.read_bytes()
         for path in (project / "build/src").rglob("*.sql")
     }
 
-    nstx(project, "preview")
+    nsx(project, "preview")
 
     previewed = {
         path.relative_to(project / "build"): path.read_bytes()
@@ -228,7 +228,7 @@ def test_preview_schemas_follow_the_naming_style(
     folder = tmp_path / "shop"
     runner.invoke(app, ["init", str(folder), "--host", HOST, "--naming-style", style])
 
-    result = nstx(folder, "preview", "--json")
+    result = nsx(folder, "preview", "--json")
 
     assert schema in json.loads(result.stdout)["result"]["schemas"]
 
@@ -240,7 +240,7 @@ def test_two_peoples_previews_of_one_project_share_no_schema_pipeline_or_bundle_
     for user in (ME, "priya.sharma@nimblestax.com"):
         fake = FakeWorkspace(user)
         monkeypatch.setattr(cli, "DatabricksCli", lambda fake=fake: fake)
-        assert nstx(project, "preview").exit_code == 0
+        assert nsx(project, "preview").exit_code == 0
         seen.append(preview_target(fake))
 
     mine, theirs = seen
@@ -263,7 +263,7 @@ def test_a_preview_deploys_uncommitted_changes(project: Path, workspace: FakeWor
     model = project / "domains/sales/models/gold/fct_orders.sql"
     model.write_text(model.read_text() + "\n-- tried in a preview\n")
 
-    nstx(project, "preview")
+    nsx(project, "preview")
 
     gold = (project / "build/src/sales/gold/fct_orders.sql").read_text()
     assert "-- tried in a preview" in gold
@@ -308,11 +308,11 @@ def test_a_preview_never_deploys_into_a_schema_another_project_created(
         "u_bijil__silver": {"nimblestax.project": "warehouse", "nimblestax.user": ME}
     }
 
-    result = nstx(project, "preview", "--json")
+    result = nsx(project, "preview", "--json")
 
     assert result.exit_code == 2, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX920"
+    assert diagnostic["rule"] == "NSX920"
     assert "dev_sales.u_bijil__silver" in diagnostic["message"]
     assert "warehouse" in diagnostic["message"]
     assert not [call for call in workspace.calls if call[0] in ("deploy", "run")]
@@ -330,11 +330,11 @@ def test_a_preview_never_deploys_into_a_schema_made_by_hand_or_for_someone_else(
 ):
     workspace.schemas["dev_sales"] = {"u_bijil__gold": properties}
 
-    result = nstx(project, "preview", "--json")
+    result = nsx(project, "preview", "--json")
 
     assert result.exit_code == 2, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX920"
+    assert diagnostic["rule"] == "NSX920"
     assert named in diagnostic["message"]
 
 
@@ -346,7 +346,7 @@ def test_a_preview_deploys_again_into_the_schemas_it_created(
         "silver": {},
     }
 
-    result = nstx(project, "preview")
+    result = nsx(project, "preview")
 
     assert result.exit_code == 0, result.output
 
@@ -358,12 +358,12 @@ def test_an_example_has_no_preview_and_points_at_deploying_it(
     folder = tmp_path / "kettle"
     runner.invoke(app, ["init", str(folder), "--example", "kettle", "--host", HOST])
 
-    result = nstx(folder, *args, "--json")
+    result = nsx(folder, *args, "--json")
 
     assert result.exit_code == 2, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX921"
-    assert "nstx deploy" in diagnostic["fix"]
+    assert diagnostic["rule"] == "NSX921"
+    assert "nsx deploy" in diagnostic["fix"]
     assert workspace.calls == []
 
 
@@ -372,7 +372,7 @@ def test_preview_down_destroys_this_projects_preview_for_this_person(
 ):
     workspace.state = [("dev_sales", "u_bijil__silver"), ("dev_sales", "u_bijil__gold")]
 
-    result = nstx(project, "preview", "down", "--json")
+    result = nsx(project, "preview", "down", "--json")
 
     assert result.exit_code == 0, result.output
     assert ("destroy", "preview") in workspace.calls
@@ -380,19 +380,19 @@ def test_preview_down_destroys_this_projects_preview_for_this_person(
 
 
 def test_a_preview_ends_by_naming_preview_down(project: Path, workspace: FakeWorkspace):
-    result = nstx(project, "preview")
+    result = nsx(project, "preview")
 
     assert (
         result.stdout.strip()
         .splitlines()[-1]
-        .endswith("Remove it with `nstx preview down` when you're done.")
+        .endswith("Remove it with `nsx preview down` when you're done.")
     )
 
 
 def test_a_preview_writes_its_own_manifest_in_its_bundle_folder_and_down_removes_it(
     project: Path, workspace: FakeWorkspace
 ):
-    result = nstx(project, "preview")
+    result = nsx(project, "preview")
 
     assert result.exit_code == 0, result.output
     folder = f"/Workspace/Users/{ME}/.bundle/shop/preview/nimblestax"
@@ -406,7 +406,7 @@ def test_a_preview_writes_its_own_manifest_in_its_bundle_folder_and_down_removes
     # Nothing is written outside the person's own preview folder.
     assert all(path.startswith(folder) for path in workspace.files)
 
-    result = nstx(project, "preview", "down")
+    result = nsx(project, "preview", "down")
 
     assert result.exit_code == 0, result.output
     assert workspace.files == {}
@@ -426,11 +426,11 @@ def test_preview_down_refuses_anything_outside_the_persons_schemas_in_dev(
 ):
     workspace.state = [("dev_sales", "u_bijil__silver"), outside]
 
-    result = nstx(project, "preview", "down", "--json")
+    result = nsx(project, "preview", "down", "--json")
 
     assert result.exit_code == 2, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX922"
+    assert diagnostic["rule"] == "NSX922"
     assert ".".join(outside) in diagnostic["message"]
     assert ("destroy", "preview") not in workspace.calls
 
@@ -439,11 +439,11 @@ def test_an_environment_named_preview_would_collide_with_previews(project: Path)
     contract = project / "nimblestax.platform.yaml"
     contract.write_text(contract.read_text().replace("naming:\n", "  preview: {}\nnaming:\n", 1))
 
-    result = nstx(project, "validate", "--json")
+    result = nsx(project, "validate", "--json")
 
     assert result.exit_code == 1, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX133"
+    assert diagnostic["rule"] == "NSX133"
 
 
 def fake_databricks(folder: Path, user: str, summary: dict) -> Path:
@@ -491,8 +491,8 @@ def test_the_databricks_cli_deploys_and_removes_the_preview_target_as_the_signed
     }
     monkeypatch.setenv(pinned_cli.OVERRIDE, str(fake_databricks(tmp_path, ME, summary)))
 
-    previewed = nstx(project, "preview", "--json")
-    removed = nstx(project, "preview", "down", "--json")
+    previewed = nsx(project, "preview", "--json")
+    removed = nsx(project, "preview", "down", "--json")
 
     assert previewed.exit_code == 0, previewed.output
     assert removed.exit_code == 0, removed.output
@@ -533,7 +533,7 @@ def test_a_pull_request_preview_deploys_every_table_to_its_own_schemas_under_cis
     model = project / "domains/sales/models/gold/fct_orders.sql"
     model.write_text(model.read_text() + "\n-- changed in pull request 42\n")
 
-    result = nstx(project, "preview", "--pr", "42", "--json")
+    result = nsx(project, "preview", "--pr", "42", "--json")
 
     assert result.exit_code == 0, result.output
     assert ("deploy", "preview") in ci.calls
@@ -571,7 +571,7 @@ def test_pull_request_preview_schemas_follow_the_naming_style(
     folder = tmp_path / "shop"
     runner.invoke(app, ["init", str(folder), "--host", HOST, "--naming-style", style])
 
-    result = nstx(folder, "preview", "--pr", "42", "--json")
+    result = nsx(folder, "preview", "--pr", "42", "--json")
 
     assert schema in json.loads(result.stdout)["result"]["schemas"]
 
@@ -586,7 +586,7 @@ def test_a_pull_request_preview_shares_no_schema_pipeline_or_folder_with_a_perso
     for user, args in ((CI, ["--pr", "1"]), ("u@acme.com", []), ("pr1@acme.com", [])):
         fake = FakeWorkspace(user)
         monkeypatch.setattr(cli, "DatabricksCli", lambda fake=fake: fake)
-        assert nstx(folder, "preview", *args).exit_code == 0
+        assert nsx(folder, "preview", *args).exit_code == 0
         [package] = fake.packages
         seen[user] = package
     dev = seen[CI]["targets"]["dev"]["variables"]
@@ -615,13 +615,13 @@ def test_a_pull_request_preview_never_deploys_into_another_projects_and_names_it
         "pr42__silver": {"nimblestax.project": "warehouse", "nimblestax.pull_request": "42"}
     }
 
-    result = nstx(project, "preview", "--pr", "42", "--json")
+    result = nsx(project, "preview", "--pr", "42", "--json")
 
     assert result.exit_code == 2, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX920"
+    assert diagnostic["rule"] == "NSX920"
     assert "for pull request 42" in diagnostic["message"]
-    assert "nstx preview down --pr 42" in diagnostic["fix"]
+    assert "nsx preview down --pr 42" in diagnostic["fix"]
     assert not [call for call in ci.calls if call[0] in ("deploy", "run")]
 
 
@@ -632,7 +632,7 @@ def test_a_pull_request_preview_deploys_again_into_the_schemas_it_created(
         "pr42__silver": {"nimblestax.project": "shop", "nimblestax.pull_request": "42"}
     }
 
-    result = nstx(project, "preview", "--pr", "42")
+    result = nsx(project, "preview", "--pr", "42")
 
     assert result.exit_code == 0, result.output
     # Nobody is asked who is signed in: the prefix comes from `--pr` alone.
@@ -642,10 +642,10 @@ def test_a_pull_request_preview_deploys_again_into_the_schemas_it_created(
 def test_preview_down_with_pr_removes_that_pull_requests_preview_and_its_manifest(
     project: Path, ci: FakeWorkspace
 ):
-    nstx(project, "preview", "--pr", "42")
+    nsx(project, "preview", "--pr", "42")
     ci.state = [("dev_sales", "pr42__silver"), ("dev_sales", "pr42__gold")]
 
-    result = nstx(project, "preview", "down", "--pr", "42", "--json")
+    result = nsx(project, "preview", "down", "--pr", "42", "--json")
 
     assert result.exit_code == 0, result.output
     assert ("destroy", "preview") in ci.calls
@@ -667,17 +667,17 @@ def test_preview_down_with_pr_refuses_anything_outside_that_pull_requests_schema
 ):
     ci.state = [("dev_sales", "pr42__silver"), outside]
 
-    result = nstx(project, "preview", "down", "--pr", "42", "--json")
+    result = nsx(project, "preview", "down", "--pr", "42", "--json")
 
     assert result.exit_code == 2, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX922"
+    assert diagnostic["rule"] == "NSX922"
     assert ".".join(outside) in diagnostic["message"]
     assert ("destroy", "preview") not in ci.calls
 
 
 def test_a_pull_request_number_starts_at_one(project: Path, ci: FakeWorkspace):
-    result = nstx(project, "preview", "--pr", "0", "--json")
+    result = nsx(project, "preview", "--pr", "0", "--json")
 
     assert result.exit_code == 2, result.output
     assert ci.calls == []
@@ -700,7 +700,7 @@ def test_databricks_accepts_a_pull_request_preview_target_apart_from_dev_and_peo
     assert job["name"] == "pr42__shop_refresh"
     schema = preview["resources"]["schemas"]["sales_silver"]
     assert schema["properties"] == {"nimblestax.project": "shop", "nimblestax.pull_request": "42"}
-    assert "nstx preview down --pr 42" in schema["comment"]
+    assert "nsx preview down --pr 42" in schema["comment"]
     assert preview["workspace"]["root_path"].endswith("/.bundle/shop/pull-requests/42")
 
 
@@ -716,8 +716,8 @@ def test_the_pull_request_workflow_previews_and_tests_each_pull_request_as_dev_a
     runs = [step["run"] for step in preview["steps"] if "run" in step]
     # Tests run in the same job, so a newer push can't redeploy the preview under them.
     assert runs == [
-        'uvx --from "$NIMBLESTAX_SPEC" nstx preview --pr ${{ github.event.pull_request.number }}',
-        'uvx --from "$NIMBLESTAX_SPEC" nstx test --pr ${{ github.event.pull_request.number }}',
+        'uvx --from "$NIMBLESTAX_SPEC" nsx preview --pr ${{ github.event.pull_request.number }}',
+        'uvx --from "$NIMBLESTAX_SPEC" nsx test --pr ${{ github.event.pull_request.number }}',
     ]
     # Two pushes to one pull request deploy one after the other, never into one bundle at once.
     assert preview["concurrency"] == {

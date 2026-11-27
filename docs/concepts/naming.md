@@ -12,7 +12,7 @@ naming:
     models: [gold]
 ```
 
-`nstx init` asks for the style and writes it here. Pressing Enter takes `domain-catalogs`.
+`nsx init` asks for the style and writes it here. Pressing Enter takes `domain-catalogs`.
 
 ## The three styles
 
@@ -44,17 +44,17 @@ The SQL is the same in every environment. Only the real name changes. With `doma
 
 Each domain and layer pair gets its own catalog and schema. A gold model in the same project, `sales.gold.fct_orders`, is `prod_sales.gold.fct_orders` in prod, and a finance source, `finance.silver.invoices`, is `prod_finance.silver.invoices`.
 
-`nstx init` prints every catalog and schema your project needs, so you can create them before your first deploy. Nimblestax never creates them. `nstx compile --env prod` shows the real names in the code it generates.
+`nsx init` prints every catalog and schema your project needs, so you can create them before your first deploy. Nimblestax never creates them. `nsx compile --env prod` shows the real names in the code it generates.
 
-`nstx validate --platform` signs in to an environment's workspace and checks that its catalogs and schemas are there, so a missing one fails before a deploy rather than halfway through one. It checks the default environment, or the one `--env` names:
+`nsx validate --platform` signs in to an environment's workspace and checks that its catalogs and schemas are there, so a missing one fails before a deploy rather than halfway through one. It checks the default environment, or the one `--env` names:
 
 ```console
-$ nstx validate --platform --env dev
-NSTX302 nimblestax.platform.yaml: The schema `dev_sales.silver` isn't in dev's workspace, https://kettle.cloud.databricks.com, or the identity Nimblestax signed in as can't see it. The project's tables in dev need it.
+$ nsx validate --platform --env dev
+NSX302 nimblestax.platform.yaml: The schema `dev_sales.silver` isn't in dev's workspace, https://kettle.cloud.databricks.com, or the identity Nimblestax signed in as can't see it. The project's tables in dev need it.
   Fix: Create the schema `silver` in the catalog `dev_sales`, or grant the identity `USE SCHEMA` on it. Nimblestax never creates schemas.
 ```
 
-It checks one environment at a time, because each CI job signs in as one environment's identity. The workflows `nstx init --ci github` writes run it as dev, before anything else. Plain `nstx validate` reads no workspace.
+It checks one environment at a time, because each CI job signs in as one environment's identity. The workflows `nsx init --ci github` writes run it as dev, before anything else. Plain `nsx validate` reads no workspace.
 
 ## Changing the style
 
@@ -72,6 +72,6 @@ Nimblestax fixes two things:
 - **The environment comes first.** Catalogs then sort by environment, so when you review grants, everything in prod sits together.
 - **Every environment, domain and layer gets its own catalog and schema.** Grants, expectations and quarantine all apply per schema, so two domains or two layers in one schema would share them. Two environments in one schema would write to the same tables, so a change in dev would reach prod.
 
-Patterns of your own, set as `catalog` and `schema`, aren't supported yet. A version 1 `nimblestax.platform.yaml` with patterns that match a style is read as that style. Patterns that match none fail with [`NSTX124`](../reference/rules/nstx124.md), which names the closest style.
+Patterns of your own, set as `catalog` and `schema`, aren't supported yet. A version 1 `nimblestax.platform.yaml` with patterns that match a style is read as that style. Patterns that match none fail with [`NSX124`](../reference/rules/nsx124.md), which names the closest style.
 
 If your convention still doesn't fit, [open an issue on nimblestax](https://github.com/nimblestax/core/issues/new) with the catalog and schema names you use. Real names help decide what custom patterns must allow.

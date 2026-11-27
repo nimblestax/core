@@ -1,4 +1,4 @@
-"""Project rules. `nstx validate` runs these with no workspace."""
+"""Project rules. `nsx validate` runs these with no workspace."""
 
 from nimblestax import names, sql
 from nimblestax.diagnostics import Diagnostic, error
@@ -131,7 +131,7 @@ def _materialized_views(project: Project) -> set[LogicalName]:
 
 def _stream_of_materialized_view(file: str, written: sql.Found) -> Diagnostic:
     return error(
-        "NSTX212",
+        "NSX212",
         file,
         f"{written.text} is a materialized view, which Databricks can recompute in full, and"
         " `STREAM(...)` reads only new rows. The pipeline would fail when it starts.",
@@ -143,7 +143,7 @@ def _stream_of_materialized_view(file: str, written: sql.Found) -> Diagnostic:
 
 def _stream_of_upsert(file: str, written: sql.Found) -> Diagnostic:
     return error(
-        "NSTX211",
+        "NSX211",
         file,
         f"{written.text} is upsert silver, which changes rows in place, and `STREAM(...)` reads"
         " only new rows. The pipeline would fail at runtime, after its first update.",
@@ -155,7 +155,7 @@ def _stream_of_upsert(file: str, written: sql.Found) -> Diagnostic:
 
 def _bronze_read(file: str, written: sql.Found, read: LogicalName, silver: str) -> Diagnostic:
     return error(
-        "NSTX210",
+        "NSX210",
         file,
         f"{written.text} is bronze, which only its silver reads. Bronze keeps rows as they"
         " landed, so a Gold Model reads silver, built after it.",
@@ -166,7 +166,7 @@ def _bronze_read(file: str, written: sql.Found, read: LogicalName, silver: str) 
 
 def _private_silver(file: str, written: sql.Found, read: LogicalName) -> Diagnostic:
     return error(
-        "NSTX209",
+        "NSX209",
         file,
         f"{written.text} is silver the {read.domain} Domain hasn't Exported,"
         " so only that Domain reads it.",
@@ -178,7 +178,7 @@ def _private_silver(file: str, written: sql.Found, read: LogicalName) -> Diagnos
 
 def _other_domains_gold(file: str, written: sql.Found, read: LogicalName) -> Diagnostic:
     return error(
-        "NSTX209",
+        "NSX209",
         file,
         f"{written.text} is the {read.domain} Domain's gold. Nobody reads another Domain's gold,"
         " so each Domain can change its own.",
@@ -199,7 +199,7 @@ def _referenced_tables(project: Project, known: set[LogicalName]) -> list[Diagno
                 continue
             diagnostics.append(
                 error(
-                    "NSTX213",
+                    "NSX213",
                     model.config_file.relative_to(project.root).as_posix(),
                     f"`{test.name}` refers to `{test.references.to}`, which isn't a table in this"
                     " project.",
@@ -244,7 +244,7 @@ def _cycles(project: Project, reads: dict[LogicalName, set[LogicalName]]) -> lis
 def _cycle(files: dict[LogicalName, str], cycle: list[LogicalName]) -> Diagnostic:
     loop = " → ".join(_dotted(model) for model in [*cycle, cycle[0]])
     return error(
-        "NSTX208",
+        "NSX208",
         files[cycle[0]],
         "A Gold Model can't read itself, directly or through other Gold Models,"
         f" because each must be built before it's read: {loop}.",
@@ -272,7 +272,7 @@ def _seeds_named_like_sources(project: Project) -> list[Diagnostic]:
     sources = {(source.domain, source.name) for source in project.sources}
     return [
         error(
-            "NSTX202",
+            "NSX202",
             seed.config_file.relative_to(project.root).as_posix(),
             f"{seed.domain}.{silver}.{seed.name} is both a Seed and a Source.",
             "Rename the Seed or the Source, so each has its own table.",
@@ -292,7 +292,7 @@ def _named_like_a_quarantine(project: Project) -> list[Diagnostic]:
     }
     return [
         error(
-            "NSTX202",
+            "NSX202",
             table.config_file.relative_to(project.root).as_posix(),
             f"{table.domain}.{silver}.{table.name} is also the Quarantine table"
             f" of the Source {quarantines[(table.domain, table.name)]}.",
@@ -305,7 +305,7 @@ def _named_like_a_quarantine(project: Project) -> list[Diagnostic]:
 
 def _unresolved(file: str, read: sql.Found) -> Diagnostic:
     return error(
-        "NSTX201",
+        "NSX201",
         file,
         f"{read.text} isn't a table in this project.",
         "Declare a Source, Seed or Gold Model with this name, or correct the Logical Name.",
@@ -315,7 +315,7 @@ def _unresolved(file: str, read: sql.Found) -> Diagnostic:
 
 def _real_name(file: str, real: sql.Found, logical: LogicalName) -> Diagnostic:
     return error(
-        "NSTX205",
+        "NSX205",
         file,
         f"{real.text} is a real table name, which names one Environment.",
         f"Use its Logical Name, {_dotted(logical)}, so the same SQL works in every Environment.",
@@ -325,7 +325,7 @@ def _real_name(file: str, real: sql.Found, logical: LogicalName) -> Diagnostic:
 
 def _real_name_of_no_table(file: str, real: sql.Found, logical: LogicalName) -> Diagnostic:
     return error(
-        "NSTX205",
+        "NSX205",
         file,
         f"{real.text} is a real table name, and no table called {_dotted(logical)}"
         " is in this project.",
@@ -336,7 +336,7 @@ def _real_name_of_no_table(file: str, real: sql.Found, logical: LogicalName) -> 
 
 def _file_read(file: str, found: sql.Found) -> Diagnostic:
     return error(
-        "NSTX206",
+        "NSX206",
         file,
         f"{found.text} reads data that isn't a table in this project,"
         " so Nimblestax can't check it or point it at each Environment.",
@@ -348,7 +348,7 @@ def _file_read(file: str, found: sql.Found) -> Diagnostic:
 
 def _raw_placeholder(file: str, found: sql.Found) -> Diagnostic:
     return error(
-        "NSTX207",
+        "NSX207",
         file,
         f"{found.text} holds `${{`, so the pipeline could replace it with a setting's value,"
         " and a raw string can't hold the escape that stops it.",
@@ -363,7 +363,7 @@ def _dotted(name: LogicalName) -> str:
 
 def _unqualified(file: str, name: sql.Found) -> Diagnostic:
     return error(
-        "NSTX201",
+        "NSX201",
         file,
         f"`{name.text}` isn't a CTE or a Logical Name, so Nimblestax can't tell which table it"
         " reads.",
@@ -375,7 +375,7 @@ def _unqualified(file: str, name: sql.Found) -> Diagnostic:
 
 def _unparseable(file: str, failure: sql.Unparseable) -> Diagnostic:
     return error(
-        "NSTX203",
+        "NSX203",
         file,
         f"Nimblestax can't read this SQL, so it can't tell what it reads. {failure.reason}",
         "Make the file one Databricks SQL query that runs on its own.",
@@ -385,7 +385,7 @@ def _unparseable(file: str, failure: sql.Unparseable) -> Diagnostic:
 
 def _computed(file: str, computed: sql.Found) -> Diagnostic:
     return error(
-        "NSTX204",
+        "NSX204",
         file,
         f"{computed.text} builds a table name as the query runs,"
         " so Nimblestax can't see what it reads.",

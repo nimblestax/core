@@ -1,4 +1,4 @@
-"""Platform rules. `nstx validate --platform` runs these against one Environment's workspace.
+"""Platform rules. `nsx validate --platform` runs these against one Environment's workspace.
 
 Nimblestax never creates a team's catalogs or schemas. Whoever owns the platform does, so a missing
 one fails here, before a deploy, rather than halfway through one. In the Development Environment,
@@ -74,7 +74,7 @@ def _lowercase(found: set[str]) -> set[str]:
 def _missing_catalog(env: str, host: str, catalog: str, schemas: list[str]) -> Diagnostic:
     listed = ", ".join(f"`{schema}`" for schema in schemas)
     return error(
-        "NSTX301",
+        "NSX301",
         platform.FILE_NAME,
         f"The catalog `{catalog}` isn't in {env}'s workspace, {host}, or the identity Nimblestax"
         f" signed in as can't see it. The project's tables in {env} need it.",
@@ -86,7 +86,7 @@ def _missing_catalog(env: str, host: str, catalog: str, schemas: list[str]) -> D
 def _missing_schema(env: str, host: str, schema: str) -> Diagnostic:
     catalog, name = schema.split(".")
     return error(
-        "NSTX302",
+        "NSX302",
         platform.FILE_NAME,
         f"The schema `{schema}` isn't in {env}'s workspace, {host}, or the identity Nimblestax"
         f" signed in as can't see it. The project's tables in {env} need it.",
@@ -98,7 +98,7 @@ def _missing_schema(env: str, host: str, schema: str) -> Diagnostic:
 def _missing_grant(env: str, catalog: str, group: str, missing: list[str]) -> Diagnostic:
     privileges = ", ".join(privilege.replace("_", " ") for privilege in missing)
     return error(
-        "NSTX303",
+        "NSX303",
         platform.FILE_NAME,
         f"The developer group `{group}` has no {privileges} on the catalog `{catalog}` in {env}."
         " Each person's Preview Environment creates its schemas there, and its sources read the"

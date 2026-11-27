@@ -7,7 +7,7 @@ An expectation is a rule on one row of a source's silver table. A row meets it o
 
 An expectation can see only its own row. A rule about a whole table, such as no two rows sharing a key or every region being one the shop knows, is a [test](tests.md). [Tests and expectations](tests.md#tests-and-expectations) sets them side by side.
 
-In Kettle, the tea shop that `nstx init --example kettle` writes, every customer needs an email:
+In Kettle, the tea shop that `nsx init --example kettle` writes, every customer needs an email:
 
 ```yaml title="domains/sales/sources/customers.yaml"
 # yaml-language-server: $schema=../../../.nimblestax/schemas/source.v1.json

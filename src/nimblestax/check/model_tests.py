@@ -1,4 +1,4 @@
-"""`nstx test`: each Gold Model's Tests, run through a SQL warehouse on a Preview Environment's
+"""`nsx test`: each Gold Model's Tests, run through a SQL warehouse on a Preview Environment's
 tables.
 
 A preview builds every table from all of dev's rows, so a Test sees the data it would see in dev,
@@ -137,7 +137,7 @@ def _unselected(name: str, candidates: list[Model]) -> Diagnostic:
     else:
         message = f"`{name}` isn't a Gold Model in this project."
         fix = f"Give a Gold Model's name or its Logical Name, one of: {listed}."
-    return error("NSTX926", "", message, fix)
+    return error("NSX926", "", message, fix)
 
 
 def _say(line: str) -> None:
@@ -181,15 +181,15 @@ def _require_deployed(
     if workspace.exists(package, bundle.PREVIEW_TARGET, f"{root}/{manifest.PATH}"):
         return
     if pull_request is None:
-        command, whose = "nstx preview", "You have"
+        command, whose = "nsx preview", "You have"
     else:
-        command, whose = f"nstx preview --pr {pull_request}", f"Pull request {pull_request} has"
+        command, whose = f"nsx preview --pr {pull_request}", f"Pull request {pull_request} has"
     problem = error(
-        "NSTX924",
+        "NSX924",
         "",
         f"{whose} no Preview Environment of this project to test. Tests run on a preview's"
         " tables, so it must be deployed first.",
-        f"Run `{command}`, then `nstx test` again.",
+        f"Run `{command}`, then `nsx test` again.",
     )
     raise Failure([problem], USAGE_OR_ENVIRONMENT)
 
@@ -206,7 +206,7 @@ def _warehouse(project: Project, workspace: TestWorkspace, host: str) -> str:
         return found[0][0]
     listed = ", ".join(f"{id} ({name})" for id, name in found) or "none"
     problem = error(
-        "NSTX923",
+        "NSX923",
         "nimblestax.platform.yaml",
         f"Nimblestax can't tell which SQL warehouse to run Tests on. You can see: {listed}.",
         f"Add `warehouse: <id>` under `environments.{dev}` in `nimblestax.platform.yaml`, set to"
@@ -294,15 +294,15 @@ def _failed(ran: Ran) -> Diagnostic:
     dotted = f"{ran.model.domain}.{ran.model.layer}.{ran.model.entity}"
     if ran.error:
         return error(
-            "NSTX402",
+            "NSX402",
             ran.file,
             f"`{ran.test}` couldn't run on `{dotted}`. The warehouse said: {ran.error}",
             "Correct the Test, such as a column's name, so it matches the model's table.",
         )
     return error(
-        "NSTX401",
+        "NSX401",
         ran.file,
         f"`{ran.test}` failed on `{dotted}`: {ran.failure}",
-        "Fix the model's SQL or the data it reads, or correct the Test, then run `nstx preview`"
-        " and `nstx test` again.",
+        "Fix the model's SQL or the data it reads, or correct the Test, then run `nsx preview`"
+        " and `nsx test` again.",
     )

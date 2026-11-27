@@ -5,7 +5,7 @@ generated: true
 nimblestax_version: 0.1.0
 ---
 
-A file with `kind: platform`, at version 2. `nstx schema platform` prints the same fields from the Nimblestax you installed.
+A file with `kind: platform`, at version 2. `nsx schema platform` prints the same fields from the Nimblestax you installed.
 
 ## Fields
 
@@ -17,17 +17,17 @@ A file with `kind: platform`, at version 2. `nstx schema platform` prints the sa
 | `environments` | map of name to object | yes |  | Settings per Environment. |
 | `environments.<name>.host` | string | no | `null` | Workspace URL. Required on the Development Environment; every other Environment uses its host unless it sets its own. |
 | `environments.<name>.role` | one of `development`, `production` | no | `null` | What Nimblestax uses the Environment for. Exactly one Environment is `development`, the one people work in: commands that read use it by default, and every Environment without a `host` uses its host. At most one is `production`, the one kept isolated: schedules run in it by default. Any other Environment is a stage, in the order CI runs them. |
-| `environments.<name>.default` | boolean | no | `false` | Whether commands that read use this Environment when `--env` is left out. At most one Environment sets it; with none, the Development Environment is the default. `nstx deploy` always needs `--env`. |
+| `environments.<name>.default` | boolean | no | `false` | Whether commands that read use this Environment when `--env` is left out. At most one Environment sets it; with none, the Development Environment is the default. `nsx deploy` always needs `--env`. |
 | `environments.<name>.schedule` | object | no | `null` | When the Environment's Job runs on its own. Left out, it runs only on each deploy. |
 | `environments.<name>.schedule.cron` | string | yes |  | A Quartz cron expression, such as `0 0 6 * * ?` for 6am every day. |
 | `environments.<name>.schedule.timezone` | string | no | `UTC` | The time zone `cron` is read in, such as `Australia/Sydney`. |
 | `environments.<name>.schedule.paused` | boolean | no | `null` | Whether the schedule is paused. Left out, it runs in the Production Environment and is paused everywhere else. |
-| `environments.<name>.warehouse` | string | no | `null` | The ID of the SQL warehouse `nstx test` runs Tests on. Read from the Development Environment, whose workspace holds every Preview Environment. Left out, Nimblestax uses the only warehouse you can see there. |
+| `environments.<name>.warehouse` | string | no | `null` | The ID of the SQL warehouse `nsx test` runs Tests on. Read from the Development Environment, whose workspace holds every Preview Environment. Left out, Nimblestax uses the only warehouse you can see there. |
 | `naming` | object | yes |  | The Naming Style, and the model Layers. |
 | `naming.style` | one of `domain-catalogs`, `layer-catalogs`, `environment-catalogs` | yes |  | Where tables live. In prod, `sales.silver.orders` is `prod_sales.silver.orders` under `domain-catalogs`, `prod_silver.sales.orders` under `layer-catalogs`, `prod.sales_silver.orders` under `environment-catalogs`. |
 | `naming.layers` | object | yes |  | The model Layers. |
 | `naming.layers.models` | list of string | yes |  | One or more model Layers, in any order. Each is a folder under `models/`. |
 | `domains` | list of string | yes |  | The Domains, one folder each under `domains/`. |
-| `developers` | string | no | `null` | The group whose members deploy their own Preview Environments into the Development Environment's catalogs. `nstx validate --platform` checks it holds `USE CATALOG`, `USE SCHEMA`, `CREATE SCHEMA` and `READ VOLUME` on them. Left out, nothing is checked. |
-| `tests` | object | no |  | How `nstx test` runs Tests on a Preview Environment. |
+| `developers` | string | no | `null` | The group whose members deploy their own Preview Environments into the Development Environment's catalogs. `nsx validate --platform` checks it holds `USE CATALOG`, `USE SCHEMA`, `CREATE SCHEMA` and `READ VOLUME` on them. Left out, nothing is checked. |
+| `tests` | object | no |  | How `nsx test` runs Tests on a Preview Environment. |
 | `tests.concurrency` | integer | no | `4` | How many Tests run at once on the SQL warehouse. `1` runs them one after another. A small warehouse queues what it can't run, so more than it handles only waits. |

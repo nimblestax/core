@@ -22,7 +22,7 @@ FOUR_STAGES = (
 )
 
 
-def nstx(project: Path, *args: str):
+def nsx(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -39,7 +39,7 @@ def environments(project: Path, block: str) -> None:
 
 
 def failures(project: Path) -> list[dict]:
-    result = nstx(project, "validate", "--json")
+    result = nsx(project, "validate", "--json")
     assert result.exit_code == 1, result.output
     return json.loads(result.stdout)["diagnostics"]
 
@@ -47,7 +47,7 @@ def failures(project: Path) -> list[dict]:
 def test_environments_named_by_the_team_compile_to_their_own_catalogs(project: Path):
     environments(project, FOUR_STAGES)
 
-    result = nstx(project, "compile")
+    result = nsx(project, "compile")
 
     assert result.exit_code == 0, result.output
     targets = yaml.safe_load((project / "build/databricks.yaml").read_text())["targets"]
@@ -57,18 +57,18 @@ def test_environments_named_by_the_team_compile_to_their_own_catalogs(project: P
     assert targets["prd"]["variables"]["schema_sales_silver"] == "silver"
 
 
-def test_a_contract_with_no_development_environment_fails_with_a_nstx130(project: Path):
+def test_a_contract_with_no_development_environment_fails_with_a_nsx130(project: Path):
     environments(project, f"environments:\n  dev:\n    host: {PLACEHOLDER_HOST}\n")
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "NSTX130"
+    assert diagnostic["rule"] == "NSX130"
     assert diagnostic["file"] == PLATFORM
     assert "role: development" in diagnostic["fix"]
 
 
 @pytest.mark.parametrize("role", ["development", "production"])
-def test_two_environments_with_one_role_fail_with_a_nstx131(project: Path, role: str):
+def test_two_environments_with_one_role_fail_with_a_nsx131(project: Path, role: str):
     environments(
         project,
         f"environments:\n  dv:\n    host: {DV_HOST}\n    role: development\n"
@@ -77,22 +77,22 @@ def test_two_environments_with_one_role_fail_with_a_nstx131(project: Path, role:
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "NSTX131"
+    assert diagnostic["rule"] == "NSX131"
     assert f"role: {role}" in diagnostic["message"]
     assert "prd" in diagnostic["message"]
 
 
 @pytest.mark.parametrize("name", ["prd-1", "1prd", "pr d"])
-def test_an_environment_name_that_isnt_an_identifier_fails_with_a_nstx132(project: Path, name: str):
+def test_an_environment_name_that_isnt_an_identifier_fails_with_a_nsx132(project: Path, name: str):
     environments(project, f'{DEV_ONLY}  "{name}": {{}}\n')
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "NSTX132"
+    assert diagnostic["rule"] == "NSX132"
     assert name in diagnostic["message"]
 
 
-def test_a_development_environment_with_no_host_fails_with_a_nstx122_naming_it(project: Path):
+def test_a_development_environment_with_no_host_fails_with_a_nsx122_naming_it(project: Path):
     environments(
         project,
         "environments:\n  dv:\n    role: development\n  prd:\n    host: https://p.example.com\n",
@@ -100,7 +100,7 @@ def test_a_development_environment_with_no_host_fails_with_a_nstx122_naming_it(p
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "NSTX122"
+    assert diagnostic["rule"] == "NSX122"
     assert "environments.dv" in diagnostic["fix"]
 
 
@@ -144,7 +144,7 @@ def test_a_schedule_runs_in_the_production_environment_and_is_paused_elsewhere(p
         f"  prod:{SCHEDULE}  prd:\n    role: production{SCHEDULE}",
     )
 
-    assert nstx(project, "compile").exit_code == 0
+    assert nsx(project, "compile").exit_code == 0
     targets = yaml.safe_load((project / "build/databricks.yaml").read_text())["targets"]
     pause_status = {
         env: targets[env]["resources"]["jobs"]["refresh"]["schedule"]["pause_status"]

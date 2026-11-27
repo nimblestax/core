@@ -70,7 +70,7 @@ class Environment(BaseModel):
         default=False,
         description="Whether commands that read use this Environment when `--env` is left out."
         " At most one Environment sets it; with none, the Development Environment is the"
-        " default. `nstx deploy` always needs `--env`.",
+        " default. `nsx deploy` always needs `--env`.",
     )
     schedule: Schedule | None = Field(
         default=None,
@@ -80,7 +80,7 @@ class Environment(BaseModel):
     warehouse: str | None = Field(
         default=None,
         min_length=1,
-        description="The ID of the SQL warehouse `nstx test` runs Tests on. Read from the"
+        description="The ID of the SQL warehouse `nsx test` runs Tests on. Read from the"
         " Development Environment, whose workspace holds every Preview Environment. Left out,"
         " Nimblestax uses the only warehouse you can see there.",
     )
@@ -90,7 +90,7 @@ def _one_default(environments: dict[str, Environment]) -> None:
     defaults = [env for env, settings in environments.items() if settings.default]
     if len(defaults) > 1:
         raise PydanticCustomError(
-            "NSTX123",
+            "NSX123",
             "{defaults} each set `default: true`, and only one Environment can be the default.",
             {
                 "defaults": " and ".join(defaults),
@@ -105,7 +105,7 @@ def _checked_v1(environments: dict[str, Environment]) -> dict[str, Environment]:
     if dev is None or dev.host is None:
         # A rule ID as the error type reaches the user as that rule, with this fix.
         raise PydanticCustomError(
-            "NSTX122",
+            "NSX122",
             "dev has no `host`, and test and prod use dev's unless they set their own.",
             {"fix": "Add `host` under `environments.dev`, set to dev's workspace URL."},
         )
@@ -120,7 +120,7 @@ def _checked(environments: dict[str, Environment]) -> dict[str, Environment]:
     for env in environments:
         if not re.fullmatch(IDENTIFIER, env):
             raise PydanticCustomError(
-                "NSTX132",
+                "NSX132",
                 "The Environment `{env}` isn't an identifier, and its name goes into its"
                 " catalogs.",
                 {
@@ -131,7 +131,7 @@ def _checked(environments: dict[str, Environment]) -> dict[str, Environment]:
             )
     if PREVIEW in environments:
         raise PydanticCustomError(
-            "NSTX133",
+            "NSX133",
             "An Environment is named `preview`, which is the bundle target every Preview"
             " Environment deploys through.",
             {"fix": "Rename the Environment, such as to `staging`."},
@@ -140,7 +140,7 @@ def _checked(environments: dict[str, Environment]) -> dict[str, Environment]:
         holders = [env for env, settings in environments.items() if settings.role == role]
         if len(holders) > 1:
             raise PydanticCustomError(
-                "NSTX131",
+                "NSX131",
                 "{holders} each set `role: {role}`, and only one Environment can hold a role.",
                 {
                     "holders": " and ".join(holders),
@@ -152,7 +152,7 @@ def _checked(environments: dict[str, Environment]) -> dict[str, Environment]:
     development = [env for env, settings in environments.items() if settings.role == DEVELOPMENT]
     if not development:
         raise PydanticCustomError(
-            "NSTX130",
+            "NSX130",
             "No Environment sets `role: development`, and every project has one Development"
             " Environment.",
             {
@@ -163,7 +163,7 @@ def _checked(environments: dict[str, Environment]) -> dict[str, Environment]:
     [env] = development
     if environments[env].host is None:
         raise PydanticCustomError(
-            "NSTX122",
+            "NSX122",
             "The Development Environment, {env}, has no `host`, and every other Environment"
             " uses its host unless it sets its own.",
             {
@@ -292,7 +292,7 @@ class ModelLayers(BaseModel):
         taken = [layer for layer in models if layer.lower() in SOURCE_LAYERS]
         if taken:
             raise PydanticCustomError(
-                "NSTX126",
+                "NSX126",
                 "`naming.layers.models` names {taken}, which is a source Layer. Sources fill"
                 " bronze and silver, and Gold Models fill only model Layers.",
                 {
@@ -324,7 +324,7 @@ class NamingV2(BaseModel):
     def _no_patterns(cls, naming: Any) -> Any:
         if isinstance(naming, dict) and ("catalog" in naming or "schema" in naming):
             raise PydanticCustomError(
-                "NSTX124",
+                "NSX124",
                 "`naming` sets `catalog` and `schema` patterns, and version 2 takes only a"
                 " Naming Style.",
                 {
@@ -341,7 +341,7 @@ def _style_list() -> str:
 
 
 class TestSettings(BaseModel):
-    """Settings for `nstx test`."""
+    """Settings for `nsx test`."""
 
     model_config = ConfigDict(**STRICT, title="Test settings")
 
@@ -377,13 +377,13 @@ class PlatformV2(BaseModel):
         default=None,
         min_length=1,
         description="The group whose members deploy their own Preview Environments into the"
-        " Development Environment's catalogs. `nstx validate --platform` checks it holds `USE"
+        " Development Environment's catalogs. `nsx validate --platform` checks it holds `USE"
         " CATALOG`, `USE SCHEMA`, `CREATE SCHEMA` and `READ VOLUME` on them. Left out, nothing"
         " is checked.",
     )
     tests: TestSettings = Field(
         default_factory=TestSettings,
-        description="How `nstx test` runs Tests on a Preview Environment.",
+        description="How `nsx test` runs Tests on a Preview Environment.",
     )
 
     @field_validator("environments")
@@ -437,7 +437,7 @@ def upgrade_to_v2(old: PlatformV1) -> PlatformV2:
     and prod take the development and production roles."""
     if tuple(old.naming.layers.sources) != SOURCE_LAYERS:
         raise PydanticCustomError(
-            "NSTX125",
+            "NSX125",
             "`naming.layers.sources` is {sources}, and the source Layers are always bronze"
             " and silver.",
             {
@@ -451,7 +451,7 @@ def upgrade_to_v2(old: PlatformV1) -> PlatformV2:
     if style is None:
         closest = names.closest_style(catalog, schema)
         raise PydanticCustomError(
-            "NSTX124",
+            "NSX124",
             "`naming` sets the patterns {patterns}, which aren't a Naming Style. The closest"
             " is {closest}. Custom patterns aren't supported yet.",
             {
