@@ -16,7 +16,7 @@ SOURCES = "domains/sales/sources"
 STARTER_PATH = "path: /Volumes/{env}_sales/bronze/landing/orders\n"
 
 
-def nstx(project: Path, *args: str):
+def nsx(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -27,7 +27,7 @@ def project(tmp_path: Path) -> Path:
 
 
 def failures(project: Path) -> list[dict]:
-    result = nstx(project, "validate", "--json")
+    result = nsx(project, "validate", "--json")
     assert result.exit_code == 1, result.output
     return json.loads(result.stdout)["diagnostics"]
 
@@ -48,20 +48,20 @@ def copy(project: Path, old: str, new: str) -> None:
         ),
     ],
 )
-def test_a_config_file_whose_name_isnt_an_identifier_fails_with_nstx117(
+def test_a_config_file_whose_name_isnt_an_identifier_fails_with_nsx117(
     project: Path, old: str, new: str, suggested: str
 ):
     copy(project, old, new)
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "NSTX117"
+    assert diagnostic["rule"] == "NSX117"
     assert diagnostic["name"] == "invalid-name"
     assert diagnostic["file"] == new
     assert suggested in diagnostic["fix"]
 
 
-def test_a_seed_whose_name_isnt_an_identifier_fails_with_nstx117(project: Path):
+def test_a_seed_whose_name_isnt_an_identifier_fails_with_nsx117(project: Path):
     seeds = project / "domains/sales/seeds"
     seeds.mkdir()
     (seeds / "vat-rates.yaml").write_text(
@@ -71,19 +71,19 @@ def test_a_seed_whose_name_isnt_an_identifier_fails_with_nstx117(project: Path):
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "NSTX117"
+    assert diagnostic["rule"] == "NSX117"
     assert diagnostic["file"] == "domains/sales/seeds/vat-rates.yaml"
 
 
 @pytest.mark.parametrize("domain", ["sales-eu", "2024", "sales eu"])
-def test_a_domain_that_isnt_an_identifier_fails_with_nstx106(project: Path, domain: str):
+def test_a_domain_that_isnt_an_identifier_fails_with_nsx106(project: Path, domain: str):
     contract = project / "nimblestax.platform.yaml"
     contract.write_text(contract.read_text().replace("  - sales\n", f'  - sales\n  - "{domain}"\n'))
     (project / "domains" / domain).mkdir()
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "NSTX106"
+    assert diagnostic["rule"] == "NSX106"
     assert diagnostic["file"] == "nimblestax.platform.yaml"
     assert diagnostic["message"].startswith("domains.1: ")
 
@@ -101,7 +101,7 @@ def test_a_path_compiles_to_a_read_files_literal_of_the_same_value(project: Path
     source = project / SOURCES / "orders.yaml"
     source.write_text(source.read_text().replace(STARTER_PATH, f"path: {json.dumps(path)}\n"))
 
-    result = nstx(project, "compile", "--env", "dev")
+    result = nsx(project, "compile", "--env", "dev")
 
     assert result.exit_code == 0, result.output
     [read_files] = [line for line in result.stdout.splitlines() if "read_files(" in line]

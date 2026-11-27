@@ -1,12 +1,12 @@
 ---
-title: nstx validate
+title: nsx validate
 description: Check config and SQL references. With `--platform`, also check the workspace.
 generated: true
 nimblestax_version: 0.1.0
 ---
 
 ```console
-$ nstx validate [OPTIONS]
+$ nsx validate [OPTIONS]
 ```
 
 ## Options

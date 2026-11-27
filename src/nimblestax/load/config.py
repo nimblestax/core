@@ -77,7 +77,7 @@ def _version_number(version: object) -> int | None:
 def unknown_kind(kind: object, file: str) -> Diagnostic:
     known = ", ".join(sorted(KINDS))
     return error(
-        "NSTX102",
+        "NSX102",
         file,
         f"`{kind}` isn't a Kind.",
         f"Use one of: {known}.",
@@ -86,7 +86,7 @@ def unknown_kind(kind: object, file: str) -> Diagnostic:
 
 def _missing_kind(file: str, expected: str) -> Diagnostic:
     return error(
-        "NSTX101",
+        "NSX101",
         file,
         "This file doesn't declare a `kind`.",
         f"Add `kind: {expected}` at the top of the file.",
@@ -96,7 +96,7 @@ def _missing_kind(file: str, expected: str) -> Diagnostic:
 def _missing_version(file: str, kind: str) -> Diagnostic:
     latest = max(versions(kind))
     return error(
-        "NSTX103",
+        "NSX103",
         file,
         "This file doesn't declare a `version`.",
         f"Add `version: {latest}` below `kind: {kind}`.",
@@ -105,7 +105,7 @@ def _missing_version(file: str, kind: str) -> Diagnostic:
 
 def _unknown_version(file: str, kind: str, version: object, known: list[int]) -> Diagnostic:
     return error(
-        "NSTX104",
+        "NSX104",
         file,
         f"`{version}` isn't a version of `{kind}` in this Nimblestax.",
         f"Use a version this Nimblestax supports: {', '.join(map(str, known))}.",
@@ -114,7 +114,7 @@ def _unknown_version(file: str, kind: str, version: object, known: list[int]) ->
 
 def _wrong_kind(file: str, kind: str, expected: str) -> Diagnostic:
     return error(
-        "NSTX105",
+        "NSX105",
         file,
         f"This file says `kind: {kind}`, but Nimblestax expects `{expected}` in this location.",
         f"Change it to `kind: {expected}`, or move the file to where `{kind}` files live.",
@@ -122,23 +122,23 @@ def _wrong_kind(file: str, kind: str, expected: str) -> Diagnostic:
 
 
 def _diagnostic(file: str, kind: str, problem: Any) -> Diagnostic:
-    """A cross-field check carries its own rule. Any other problem is a NSTX106 on one field."""
+    """A cross-field check carries its own rule. Any other problem is a NSX106 on one field."""
     if problem["type"] in RULES:
         return error(problem["type"], file, problem["msg"], problem["ctx"]["fix"])
     field = ".".join(map(str, problem["loc"]))
     prefix = f"{field}: " if field else ""
     return error(
-        "NSTX106",
+        "NSX106",
         file,
         f"{prefix}{problem['msg']}",
-        f"Run `nstx schema {kind}` to see the fields of this Kind.",
+        f"Run `nsx schema {kind}` to see the fields of this Kind.",
     )
 
 
 def _unreadable(file: str, problem: Exception) -> Diagnostic:
     mark = getattr(problem, "problem_mark", None)
     return error(
-        "NSTX107",
+        "NSX107",
         file,
         f"This file can't be read as YAML: {problem}",
         "Create the file, or correct its YAML.",
@@ -148,7 +148,7 @@ def _unreadable(file: str, problem: Exception) -> Diagnostic:
 
 def _not_a_mapping(file: str, expected: str) -> Diagnostic:
     return error(
-        "NSTX107",
+        "NSX107",
         file,
         "This file isn't a YAML mapping of fields.",
         f"Start the file with `kind: {expected}` and its other fields.",

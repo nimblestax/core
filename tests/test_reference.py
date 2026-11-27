@@ -127,8 +127,8 @@ def test_every_rule_has_a_committed_page():
 def test_a_rule_page_says_what_it_checks_why_an_example_that_fails_and_the_fix(tmp_path: Path):
     reference.write(tmp_path)
 
-    rule = RULES["NSTX201"]
-    page = (tmp_path / "reference/rules/nstx201.md").read_text()
+    rule = RULES["NSX201"]
+    page = (tmp_path / "reference/rules/nsx201.md").read_text()
     assert f"## What it checks\n\n{rule.checks}\n" in page
     assert f"## Why\n\n{rule.why}\n" in page
     for path, text in rule.example.files.items():
@@ -151,7 +151,7 @@ def test_every_example_fails_with_its_own_rule(
     for path, text in example.files.items():
         (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / path).write_text(text)
-    command = shlex.split(example.command or "nstx validate")[1:]
+    command = shlex.split(example.command or "nsx validate")[1:]
 
     result = runner.invoke(app, [*command, "--json"])
 
@@ -161,9 +161,9 @@ def test_every_example_fails_with_its_own_rule(
 def test_a_rule_page_links_the_principle_behind_it_where_there_is_one(tmp_path: Path):
     reference.write(tmp_path)
 
-    enforced = (tmp_path / "reference/rules/nstx201.md").read_text()
+    enforced = (tmp_path / "reference/rules/nsx201.md").read_text()
     assert "(https://nimblestax.com/way/code-names-tables-logically)" in enforced
-    assert "nimblestax.com/way" not in (tmp_path / "reference/rules/nstx203.md").read_text()
+    assert "nimblestax.com/way" not in (tmp_path / "reference/rules/nsx203.md").read_text()
 
 
 # The Way's principles as nimblestax.com publishes them.
@@ -204,7 +204,7 @@ def test_every_command_gets_a_page_listing_its_options_and_exit_codes(tmp_path: 
             text = text.split(f"\n## {section}\n")[1].split("\n## ")[0]
             assert text.startswith(f"\n{registered.help}\n")
         else:
-            assert page["title"] == f"nstx {name}"
+            assert page["title"] == f"nsx {name}"
             assert page["description"] == registered.help
         if name in PASSED_THROUGH:
             continue  # Its arguments and exit codes are the Databricks CLI's.
@@ -218,7 +218,7 @@ def test_the_databricks_page_says_its_arguments_and_exit_code_are_the_clis(tmp_p
     reference.write(tmp_path)
 
     text = (tmp_path / "reference/commands/databricks.md").read_text()
-    assert "$ nstx databricks <arguments>" in text
+    assert "$ nsx databricks <arguments>" in text
     assert "exits with its exit code" in text
     assert "## JSON result" not in text
 
@@ -296,7 +296,7 @@ def index_rows(page: str) -> list[tuple[str, str, str]]:
     for line in page.splitlines():
         if line.startswith("## "):
             heading = line.removeprefix("## ")
-        found = re.match(r"\| \[`(NSTX\d{3})`\]\(([^)]+)\) \|", line)
+        found = re.match(r"\| \[`(NSX\d{3})`\]\(([^)]+)\) \|", line)
         if found:
             rows.append((heading, found[1], found[2]))
     return rows
@@ -327,11 +327,11 @@ def test_a_command_group_gets_one_page_with_a_section_per_subcommand(tmp_path: P
     text = (tmp_path / f"reference/commands/{group}.md").read_text()
     page = front_matter(text)
     registered: Any = typer.main.get_command(app)
-    assert page["title"] == f"nstx {group}"
+    assert page["title"] == f"nsx {group}"
     assert page["description"] == registered.commands[group].help
     for inner in registered.commands[group].commands:
         assert f"\n## {inner}\n" in text, inner
-        assert f"$ nstx {group} {inner}" in text, inner
+        assert f"$ nsx {group} {inner}" in text, inner
         assert not (tmp_path / f"reference/commands/{group}-{inner}.md").exists()
 
 

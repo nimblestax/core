@@ -5,7 +5,7 @@ generated: true
 nimblestax_version: 0.1.0
 ---
 
-A file with `kind: seed`, at version 1. `nstx schema seed` prints the same fields from the Nimblestax you installed.
+A file with `kind: seed`, at version 1. `nsx schema seed` prints the same fields from the Nimblestax you installed.
 
 ## Fields
 

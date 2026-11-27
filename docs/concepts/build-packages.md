@@ -3,10 +3,10 @@ title: Build packages
 description: How one build of one commit becomes the package every environment is deployed from, and why it is never rebuilt.
 ---
 
-A build package is what `nstx compile` writes into `build/`. Each merge builds one, and every environment is deployed from it. Prod runs the files that dev and every stage before it ran.
+A build package is what `nsx compile` writes into `build/`. Each merge builds one, and every environment is deployed from it. Prod runs the files that dev and every stage before it ran.
 
 ```console
-$ nstx compile
+$ nsx compile
 Wrote build
 ```
 
@@ -28,7 +28,7 @@ build/
     └── shared/gold/dim_date.sql
 ```
 
-- **The SQL** names tables through placeholders, such as `${catalog_sales_silver}`, never real catalogs. So one copy works in every environment. `nstx compile --env dev` prints it with real names.
+- **The SQL** names tables through placeholders, such as `${catalog_sales_silver}`, never real catalogs. So one copy works in every environment. `nsx compile --env dev` prints it with real names.
 - **`databricks.yaml`** gives the placeholders their values, under one target per environment.
 - **`nimblestax.package.json`** records the commit the package was built from, the Nimblestax version that built it, a checksum of each file and one for the whole package, and each table the package writes.
 
@@ -51,30 +51,30 @@ A package built outside a Git repo, or before the first commit, records `"commit
 
 ## Deploying a package
 
-`nstx deploy --package` deploys the package it is given, as it is:
+`nsx deploy --package` deploys the package it is given, as it is:
 
 ```console
-$ nstx deploy --env dev --package build
+$ nsx deploy --env dev --package build
 Deployed to dev
 ```
 
-Before it deploys anything, Nimblestax checks each file against `nimblestax.package.json`. A package with a file added, removed or edited since it was built is refused with [`NSTX918`](../reference/rules/nstx918.md), and a folder with no record with [`NSTX917`](../reference/rules/nstx917.md). A package is never rebuilt, so a newer Nimblestax or a later commit can't change what reaches prod.
+Before it deploys anything, Nimblestax checks each file against `nimblestax.package.json`. A package with a file added, removed or edited since it was built is refused with [`NSX918`](../reference/rules/nsx918.md), and a folder with no record with [`NSX917`](../reference/rules/nsx917.md). A package is never rebuilt, so a newer Nimblestax or a later commit can't change what reaches prod.
 
-Without `--package`, `nstx deploy` validates the project, builds a package into `build/`, and deploys that.
+Without `--package`, `nsx deploy` validates the project, builds a package into `build/`, and deploys that.
 
 ## In CI
 
-The merge workflow that `nstx init --ci github` writes builds the package once, in a job that holds no environment's credentials. It keeps the package as a workflow artifact, and the job that deploys dev downloads it:
+The merge workflow that `nsx init --ci github` writes builds the package once, in a job that holds no environment's credentials. It keeps the package as a workflow artifact, and the job that deploys dev downloads it:
 
 ```yaml
-- run: uvx --from "$NIMBLESTAX_SPEC" nstx validate
-- run: uvx --from "$NIMBLESTAX_SPEC" nstx compile
+- run: uvx --from "$NIMBLESTAX_SPEC" nsx validate
+- run: uvx --from "$NIMBLESTAX_SPEC" nsx compile
 - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
   with:
     name: nimblestax-package
     path: build
 ```
 
-Each later stage downloads the same artifact and runs `nstx deploy --env <env> --package build`. GitHub keeps artifacts for 90 days by default, which is how long a package can wait for promotion.
+Each later stage downloads the same artifact and runs `nsx deploy --env <env> --package build`. GitHub keeps artifacts for 90 days by default, which is how long a package can wait for promotion.
 
 Each successful deploy records the package's commit and checksum in that environment's [deployment manifest](deployment-manifests.md).

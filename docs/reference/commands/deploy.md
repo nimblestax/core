@@ -1,12 +1,12 @@
 ---
-title: nstx deploy
+title: nsx deploy
 description: Deploy to an Environment, refresh its tables, and write its Deployment Manifest.
 generated: true
 nimblestax_version: 0.1.0
 ---
 
 ```console
-$ nstx deploy [OPTIONS]
+$ nsx deploy [OPTIONS]
 ```
 
 ## Options
@@ -14,7 +14,7 @@ $ nstx deploy [OPTIONS]
 | Option | Takes | Default | Meaning |
 | --- | --- | --- | --- |
 | `--env` | text |  | The Environment to deploy. Required: a deploy never uses the default Environment. |
-| `--package` | path |  | The Build Package to deploy, as `nstx compile` wrote it. It is deployed as it is, never rebuilt. Left out, the project is validated and built first. |
+| `--package` | path |  | The Build Package to deploy, as `nsx compile` wrote it. It is deployed as it is, never rebuilt. Left out, the project is validated and built first. |
 | `--project` | path | `.` | The project folder. |
 | `--json` | Nothing |  | Print one JSON envelope. |
 

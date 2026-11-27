@@ -1,4 +1,4 @@
-"""`nstx test`: a Gold Model's Tests, run through a SQL warehouse on a Preview Environment's
+"""`nsx test`: a Gold Model's Tests, run through a SQL warehouse on a Preview Environment's
 tables."""
 
 import json
@@ -30,7 +30,7 @@ WAREHOUSE = "4b9b953939869799"
 
 class FakeWorkspace:
     """The Databricks boundary, as one person signed in to dev's workspace sees it, after
-    `nstx preview` has deployed their preview."""
+    `nsx preview` has deployed their preview."""
 
     def __init__(self, user: str = ME):
         self.user = user
@@ -80,7 +80,7 @@ class FakeWorkspace:
         raise AssertionError(f"No table this fake knows in:\n{statement}")
 
 
-def nstx(project: Path, *args: str):
+def nsx(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -113,11 +113,11 @@ def test_a_failing_uniqueness_test_fails_and_is_reported_by_name(
     with_tests(project, "  - unique: [order_id]\n")
     workspace.measures[PREVIEW_FCT_ORDERS] = ["2", '["{\\"order_id\\":7}","{\\"order_id\\":9}"]']
 
-    result = nstx(project, "test", "--json")
+    result = nsx(project, "test", "--json")
 
     assert result.exit_code == 1, result.output
     [found] = json.loads(result.stdout)["diagnostics"]
-    assert found["rule"] == "NSTX401"
+    assert found["rule"] == "NSX401"
     assert found["file"] == FCT_ORDERS
     assert "unique(order_id)" in found["message"]
     assert "sales.gold.fct_orders" in found["message"]
@@ -130,7 +130,7 @@ def test_passing_tests_exit_0_and_run_on_the_only_warehouse_in_devs_workspace(
     with_tests(project, "  - unique: [order_id]\n")
     workspace.measures[PREVIEW_FCT_ORDERS] = ["0", "[]"]
 
-    result = nstx(project, "test", "--json")
+    result = nsx(project, "test", "--json")
 
     assert result.exit_code == 0, result.output
     assert json.loads(result.stdout)["result"]["tests"] == [
@@ -153,40 +153,40 @@ def test_the_development_environments_warehouse_wins_over_any_other(
     with_tests(project, "  - unique: [order_id]\n")
     workspace.measures[PREVIEW_FCT_ORDERS] = ["0", "[]"]
 
-    result = nstx(project, "test", "--json")
+    result = nsx(project, "test", "--json")
 
     assert result.exit_code == 0, result.output
     assert [warehouse for _, warehouse, _ in workspace.queries] == ["abc123"]
 
 
-def test_with_several_warehouses_and_none_named_nstx_test_exits_2_listing_them(
+def test_with_several_warehouses_and_none_named_nsx_test_exits_2_listing_them(
     project: Path, workspace: FakeWorkspace
 ):
     workspace.warehouse_list = [(WAREHOUSE, "Starter Warehouse"), ("abc123", "Tests")]
     with_tests(project, "  - unique: [order_id]\n")
 
-    result = nstx(project, "test", "--json")
+    result = nsx(project, "test", "--json")
 
     assert result.exit_code == 2, result.output
     [found] = json.loads(result.stdout)["diagnostics"]
-    assert found["rule"] == "NSTX923"
+    assert found["rule"] == "NSX923"
     assert "abc123 (Tests)" in found["message"]
     assert "warehouse: " in found["fix"]
     assert not workspace.queries
 
 
-def test_with_no_deployed_preview_nstx_test_exits_2_saying_to_preview_first(
+def test_with_no_deployed_preview_nsx_test_exits_2_saying_to_preview_first(
     project: Path, workspace: FakeWorkspace
 ):
     workspace.deployed = False
     with_tests(project, "  - unique: [order_id]\n")
 
-    result = nstx(project, "test", "--json")
+    result = nsx(project, "test", "--json")
 
     assert result.exit_code == 2, result.output
     [found] = json.loads(result.stdout)["diagnostics"]
-    assert found["rule"] == "NSTX924"
-    assert "`nstx preview`" in found["fix"]
+    assert found["rule"] == "NSX924"
+    assert "`nsx preview`" in found["fix"]
     assert not workspace.queries
 
 
@@ -196,7 +196,7 @@ def test_a_pull_requests_preview_is_tested_on_its_own_tables(
     with_tests(project, "  - unique: [order_id]\n")
     workspace.measures["dev_sales.pr42__gold.fct_orders"] = ["0", "[]"]
 
-    result = nstx(project, "test", "--pr", "42", "--json")
+    result = nsx(project, "test", "--pr", "42", "--json")
 
     assert result.exit_code == 0, result.output
 
@@ -206,11 +206,11 @@ def test_with_no_deployed_pull_request_preview_the_fix_names_its_pull_request(
 ):
     workspace.deployed = False
 
-    result = nstx(project, "test", "--pr", "42", "--json")
+    result = nsx(project, "test", "--pr", "42", "--json")
 
     assert result.exit_code == 2, result.output
     [found] = json.loads(result.stdout)["diagnostics"]
-    assert "`nstx preview --pr 42`" in found["fix"]
+    assert "`nsx preview --pr 42`" in found["fix"]
 
 
 def failures(result) -> list[str]:
@@ -224,7 +224,7 @@ def test_a_row_count_test_with_no_limits_fails_on_an_empty_table(
     with_tests(project, "  - row_count: {}\n")
     workspace.measures[PREVIEW_FCT_ORDERS] = ["0"]
 
-    [message] = failures(nstx(project, "test", "--json"))
+    [message] = failures(nsx(project, "test", "--json"))
 
     assert "`row_count(min: 1)`" in message
     assert "has 0 rows" in message
@@ -237,7 +237,7 @@ def test_a_row_count_test_checks_its_minimum_and_maximum(
     with_tests(project, "  - row_count: {min: 100, max: 500}\n")
     workspace.measures[PREVIEW_FCT_ORDERS] = [rows]
 
-    result = nstx(project, "test", "--json")
+    result = nsx(project, "test", "--json")
 
     assert (result.exit_code == 0) is passes, result.output
 
@@ -251,7 +251,7 @@ def test_a_references_test_fails_on_values_missing_from_the_previews_own_table(
     with_tests(project, REFERENCES_ORDERS)
     workspace.measures[PREVIEW_FCT_ORDERS] = ["3", '["7","9"]']
 
-    [message] = failures(nstx(project, "test", "--json"))
+    [message] = failures(nsx(project, "test", "--json"))
 
     assert "`references(order_id, to: sales.silver.orders.order_id)`" in message
     assert "3 rows" in message and "7, 9" in message
@@ -266,7 +266,7 @@ def test_a_references_test_can_name_a_key_with_another_name(
     with_tests(project, "  - references: {column: order_id, to: sales.silver.orders, key: id}\n")
     workspace.measures[PREVIEW_FCT_ORDERS] = ["0", "[]"]
 
-    result = nstx(project, "test", "--json")
+    result = nsx(project, "test", "--json")
 
     assert result.exit_code == 0, result.output
     assert json.loads(result.stdout)["result"]["tests"][0]["test"] == (
@@ -277,11 +277,11 @@ def test_a_references_test_can_name_a_key_with_another_name(
 def test_a_references_test_to_a_table_the_project_lacks_fails_validation(project: Path):
     with_tests(project, "  - references: {column: customer_id, to: sales.gold.dim_customers}\n")
 
-    result = nstx(project, "validate", "--json")
+    result = nsx(project, "validate", "--json")
 
     assert result.exit_code == 1
     [found] = json.loads(result.stdout)["diagnostics"]
-    assert found["rule"] == "NSTX213"
+    assert found["rule"] == "NSX213"
     assert found["file"] == FCT_ORDERS
     assert "sales.gold.dim_customers" in found["message"]
 
@@ -289,11 +289,11 @@ def test_a_references_test_to_a_table_the_project_lacks_fails_validation(project
 def test_a_test_of_a_type_nimblestax_lacks_is_one_problem_naming_the_types(project: Path):
     with_tests(project, "  - not_null: [order_id]\n")
 
-    result = nstx(project, "validate", "--json")
+    result = nsx(project, "validate", "--json")
 
     assert result.exit_code == 1
     [found] = json.loads(result.stdout)["diagnostics"]
-    assert found["rule"] == "NSTX106"
+    assert found["rule"] == "NSX106"
     assert "`references`" in found["message"]
 
 
@@ -307,11 +307,11 @@ def test_a_test_that_cant_run_fails_with_the_warehouses_error_and_the_rest_still
     )
     workspace.measures["dev_sales.u_bijil__gold.dim_date"] = ["5844"]
 
-    result = nstx(project, "test", "--json")
+    result = nsx(project, "test", "--json")
 
     assert result.exit_code == 1, result.output
     [found] = json.loads(result.stdout)["diagnostics"]
-    assert found["rule"] == "NSTX402"
+    assert found["rule"] == "NSX402"
     assert "`unique(order_no)`" in found["message"]
     assert "UNRESOLVED_COLUMN" in found["message"]
     assert len(workspace.queries) == 2
@@ -323,30 +323,28 @@ def test_owner_is_optional(project: Path):
         "\n".join(line for line in config.read_text().splitlines() if "owner" not in line) + "\n"
     )
 
-    assert nstx(project, "validate").exit_code == 0
+    assert nsx(project, "validate").exit_code == 0
 
 
 def test_an_empty_owner_is_a_mistake(project: Path):
     config = project / FCT_ORDERS
     config.write_text(config.read_text() + 'owner: ""\n')
 
-    result = nstx(project, "validate", "--json")
+    result = nsx(project, "validate", "--json")
 
     assert result.exit_code == 1
     [found] = json.loads(result.stdout)["diagnostics"]
-    assert found["rule"] == "NSTX106"
+    assert found["rule"] == "NSX106"
 
 
-def test_an_example_has_no_preview_so_nstx_test_refuses_it(
-    tmp_path: Path, workspace: FakeWorkspace
-):
+def test_an_example_has_no_preview_so_nsx_test_refuses_it(tmp_path: Path, workspace: FakeWorkspace):
     kettle = tmp_path / "kettle"
     assert runner.invoke(app, ["init", str(kettle), "--example", "kettle"]).exit_code == 0
 
-    result = nstx(kettle, "test", "--json")
+    result = nsx(kettle, "test", "--json")
 
     assert result.exit_code == 2, result.output
-    assert [found["rule"] for found in json.loads(result.stdout)["diagnostics"]] == ["NSTX921"]
+    assert [found["rule"] for found in json.loads(result.stdout)["diagnostics"]] == ["NSX921"]
 
 
 @pytest.fixture
@@ -430,7 +428,7 @@ def test_each_test_is_reported_on_stderr_as_it_starts_and_ends_leaving_stdout_on
     workspace.measures[PREVIEW_FCT_ORDERS] = ["0", "[]"]
     workspace.measures["dev_sales.u_bijil__gold.dim_date"] = ["0"]
 
-    result = nstx(project, "test", "--json")
+    result = nsx(project, "test", "--json")
 
     assert result.exit_code == 1, result.output
     assert json.loads(result.stdout)["ok"] is False
@@ -451,7 +449,7 @@ def test_a_test_is_announced_before_its_query_runs(project: Path, workspace: Fak
     # What CliRunner has caught on stderr when the query starts.
     workspace.on_query = lambda: seen.append(cast(BytesIO, sys.stderr.buffer).getvalue().decode())
 
-    result = nstx(project, "test")
+    result = nsx(project, "test")
 
     assert result.exit_code == 0, result.output
     assert seen and seen[0].endswith("  started      sales.gold.fct_orders: unique(order_id)\n")
@@ -461,7 +459,7 @@ def test_a_test_that_cant_run_is_reported_as_such(project: Path, workspace: Fake
     with_tests(project, "  - unique: [order_no]\n")
     workspace.measures[PREVIEW_FCT_ORDERS] = QueryFailed("[UNRESOLVED_COLUMN] order_no")
 
-    result = nstx(project, "test")
+    result = nsx(project, "test")
 
     assert "  couldn't run sales.gold.fct_orders: unique(order_no)  (1/1)" in result.stderr
     assert result.stderr.startswith("Running 1 Test on your Preview Environment")
@@ -482,7 +480,7 @@ def test_tests_run_as_many_at_a_time_as_the_platform_contract_says_by_default_4(
     workspace.measures[PREVIEW_FCT_ORDERS] = ["5", "[]"]  # Every Test passes or fails alike.
     workspace.delay = 0.05
 
-    result = nstx(project, "test", "--json")
+    result = nsx(project, "test", "--json")
 
     assert workspace.peak == expected, result.output
     assert len(workspace.queries) == 4
@@ -496,7 +494,7 @@ def test_failures_are_reported_in_the_order_tests_are_declared_however_they_fini
     workspace.measures[PREVIEW_FCT_ORDERS] = ["2", '["1","2"]']
     workspace.measures["dev_sales.u_bijil__gold.dim_date"] = ["0"]
 
-    result = nstx(project, "test", "--json")
+    result = nsx(project, "test", "--json")
 
     files = [found["file"] for found in json.loads(result.stdout)["diagnostics"]]
     assert files == ["domains/sales/models/gold/dim_date.yaml", FCT_ORDERS]
@@ -507,11 +505,11 @@ def test_concurrency_is_a_whole_number_from_1_to_64(project: Path, concurrency: 
     platform = project / "nimblestax.platform.yaml"
     platform.write_text(platform.read_text() + f"tests:\n  concurrency: {concurrency}\n")
 
-    result = nstx(project, "validate", "--json")
+    result = nsx(project, "validate", "--json")
 
     assert result.exit_code == 1
     [found] = json.loads(result.stdout)["diagnostics"]
-    assert found["rule"] == "NSTX106"
+    assert found["rule"] == "NSX106"
     assert found["file"] == "nimblestax.platform.yaml"
 
 
@@ -529,7 +527,7 @@ def test_an_identity_without_databricks_sql_access_gets_the_grant_to_ask_for(
             workspace.warehouses(stub_workspace)
 
     [found] = raised.value.diagnostics
-    assert found.rule == "NSTX925"
+    assert found.rule == "NSX925"
     assert "databricks-sql-access" in found.fix
     assert "CAN USE" in found.fix
 
@@ -555,7 +553,7 @@ def test_model_selects_the_tests_of_one_model_by_name_or_logical_name(
     with_tests(project, "  - row_count: {}\n", DIM_DATE)
     workspace.measures[PREVIEW_FCT_ORDERS] = ["0", "[]"]
 
-    result = nstx(project, "test", "--model", name, "--json")
+    result = nsx(project, "test", "--model", name, "--json")
 
     assert result.exit_code == 0, result.output
     assert queried_tables(workspace) == {PREVIEW_FCT_ORDERS}
@@ -570,7 +568,7 @@ def test_model_can_be_given_more_than_once(project: Path, workspace: FakeWorkspa
     workspace.measures[PREVIEW_FCT_ORDERS] = ["0", "[]"]
     workspace.measures[PREVIEW_DIM_DATE] = ["5"]
 
-    result = nstx(project, "test", "--model", "fct_orders", "--model", "dim_date")
+    result = nsx(project, "test", "--model", "fct_orders", "--model", "dim_date")
 
     assert result.exit_code == 0, result.output
     assert queried_tables(workspace) == {PREVIEW_FCT_ORDERS, PREVIEW_DIM_DATE}
@@ -581,11 +579,11 @@ def test_a_name_that_matches_no_model_exits_2_listing_the_models_before_reaching
 ):
     workspace.deployed = False  # Nothing about the workspace should be asked.
 
-    result = nstx(project, "test", "--model", "fct_order", "--json")
+    result = nsx(project, "test", "--model", "fct_order", "--json")
 
     assert result.exit_code == 2, result.output
     [found] = json.loads(result.stdout)["diagnostics"]
-    assert found["rule"] == "NSTX926"
+    assert found["rule"] == "NSX926"
     assert "`fct_order`" in found["message"]
     assert "sales.gold.dim_date" in found["fix"] and "sales.gold.fct_orders" in found["fix"]
 
@@ -602,11 +600,11 @@ def test_a_name_two_domains_share_exits_2_asking_for_the_logical_name(
         "kind: model\nversion: 1\nsql: fct_orders.sql\nowner: finance-analytics\n"
     )
 
-    result = nstx(project, "test", "--model", "fct_orders", "--json")
+    result = nsx(project, "test", "--model", "fct_orders", "--json")
 
     assert result.exit_code == 2, result.output
     [found] = json.loads(result.stdout)["diagnostics"]
-    assert found["rule"] == "NSTX926"
+    assert found["rule"] == "NSX926"
     assert "finance.gold.fct_orders" in found["fix"] and "sales.gold.fct_orders" in found["fix"]
 
 
@@ -617,7 +615,7 @@ def test_model_takes_a_comma_separated_list(project: Path, workspace: FakeWorksp
     workspace.measures[PREVIEW_FCT_ORDERS] = ["0", "[]"]
     workspace.measures[PREVIEW_DIM_DATE] = ["5"]
 
-    result = nstx(project, "test", "--model", given)
+    result = nsx(project, "test", "--model", given)
 
     assert result.exit_code == 0, result.output
     assert queried_tables(workspace) == {PREVIEW_FCT_ORDERS, PREVIEW_DIM_DATE}
@@ -635,13 +633,13 @@ def test_a_name_two_model_layers_share_exits_2_listing_both_logical_names(
         "kind: model\nversion: 1\nsql: fct_orders.sql\nowner: sales-analytics\n"
     )
 
-    result = nstx(project, "test", "--model", "fct_orders", "--json")
+    result = nsx(project, "test", "--model", "fct_orders", "--json")
 
     assert result.exit_code == 2, result.output
     [found] = json.loads(result.stdout)["diagnostics"]
-    assert found["rule"] == "NSTX926"
+    assert found["rule"] == "NSX926"
     assert found["message"] == "`fct_orders` names more than one Gold Model."
     assert "sales.gold.fct_orders" in found["fix"] and "sales.marts.fct_orders" in found["fix"]
 
-    result = nstx(project, "test", "--model", "sales.marts.fct_orders", "--json")
+    result = nsx(project, "test", "--model", "sales.marts.fct_orders", "--json")
     assert result.exit_code == 0, result.output

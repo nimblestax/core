@@ -27,7 +27,7 @@ DOCS = f"{DOCS_ROOT}/reference/json-output.md#rule-ids"
 @dataclass(frozen=True)
 class Diagnostic:
     rule: Annotated[
-        str, Field(description="The Rule's ID, such as `NSTX201`. An ID never changes meaning.")
+        str, Field(description="The Rule's ID, such as `NSX201`. An ID never changes meaning.")
     ]
     name: Annotated[str, Field(description="The Rule's name, such as `unresolved-logical-name`.")]
     severity: Annotated[

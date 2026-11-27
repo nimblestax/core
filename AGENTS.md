@@ -25,12 +25,12 @@ A page never mixes these. If a guide starts explaining an idea, link to the conc
 - Write to "you", in the present tense, in short sentences.
 - Say what happens. Not "Nimblestax allows you to quarantine rows" but "rows that fail go to quarantine".
 - No marketing words: no "powerful", "seamless", "simply", "easily".
-- Nimblestax's terms are lowercase in prose: a source, a gold model, quarantine, the platform contract. Identifiers stay in code: `keys`, `nimblestax.platform.yaml`, `NSTX209`.
+- Nimblestax's terms are lowercase in prose: a source, a gold model, quarantine, the platform contract. Identifiers stay in code: `keys`, `nimblestax.platform.yaml`, `NSX209`.
 
 ### Show, then tell
 
 - Each guide step is a command or a file, followed by the real output it produces.
-- Write commands bare, `nstx validate`, for a reader whose project's `.venv` is active.
+- Write commands bare, `nsx validate`, for a reader whose project's `.venv` is active.
 - Examples come from Kettle, the fictional tea shop in `src/nimblestax/examples/kettle/`. A code block titled with a file path, ```` ```yaml title="domains/sales/sources/orders.yaml" ````, must match that file in Kettle. Reference pages use placeholders such as `<source>`.
 
 ### Link, don't repeat

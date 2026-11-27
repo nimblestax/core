@@ -134,7 +134,7 @@ class ModelV1(InDomain):
     )
     tests: list[Test] = Field(
         default=[],
-        description="The Tests `nstx test` runs on this model's table in a Preview Environment.",
+        description="The Tests `nsx test` runs on this model's table in a Preview Environment.",
     )
 
     @property
@@ -203,7 +203,7 @@ def _relative(root: Path, file: Path) -> str:
 
 def _sql_without_config(file: str, stem: str) -> Diagnostic:
     return error(
-        "NSTX108",
+        "NSX108",
         file,
         "This SQL file has no config file beside it.",
         f"Add `{stem}.yaml` beside it with `kind: model`, `version: 1` and `sql: {stem}.sql`.",
@@ -212,7 +212,7 @@ def _sql_without_config(file: str, stem: str) -> Diagnostic:
 
 def _missing_sql(file: str, sql: str) -> Diagnostic:
     return error(
-        "NSTX109",
+        "NSX109",
         file,
         f"`{sql}` doesn't exist beside this file.",
         "Correct `sql`, or add the SQL file to the same folder.",

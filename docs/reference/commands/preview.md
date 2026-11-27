@@ -1,12 +1,12 @@
 ---
-title: nstx preview
+title: nsx preview
 description: Deploy your working tree to a Preview Environment, yours or a pull request's.
 generated: true
 nimblestax_version: 0.1.0
 ---
 
 ```console
-$ nstx preview [<action>] [OPTIONS]
+$ nsx preview [<action>] [OPTIONS]
 ```
 
 ## Arguments

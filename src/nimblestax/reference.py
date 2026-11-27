@@ -23,7 +23,7 @@ from nimblestax.registry import RULES, SERIES, Rule
 WAY = "https://nimblestax.com/way"
 LANGUAGES = {".yaml": "yaml", ".yml": "yaml", ".sql": "sql", ".csv": "csv", ".md": "markdown"}
 EXAMPLE = error(
-    "NSTX201",
+    "NSX201",
     "domains/sales/models/gold/fct_orders.sql",
     "sales.silver.nope isn't a table in this project.",
     "Declare a Source, Seed or Gold Model with this name, or correct the Logical Name.",
@@ -66,7 +66,7 @@ def _kind_page(kind: str) -> str:
     version, schema = latest_schema(kind)
     title = schema["title"].removeprefix("Nimblestax ")
     lead = (
-        f"A file with `kind: {kind}`, at version {version}. `nstx schema {kind}` prints the same"
+        f"A file with `kind: {kind}`, at version {version}. `nsx schema {kind}` prints the same"
         " fields from the Nimblestax you installed.\n"
     )
     table = [
@@ -147,9 +147,9 @@ def _without_null(field: dict[str, Any]) -> dict[str, Any]:
 
 def _json_page(commands: dict[str, TyperCommand]) -> str:
     example = output.envelope("validate", False, {}, [EXAMPLE])
-    passed_through = ", ".join(f"[`nstx {name}`](commands/{name}.md)" for name in PASSED_THROUGH)
+    passed_through = ", ".join(f"[`nsx {name}`](commands/{name}.md)" for name in PASSED_THROUGH)
     sections = [
-        f"Every `nstx` command but {passed_through}, which hands its arguments to the"
+        f"Every `nsx` command but {passed_through}, which hands its arguments to the"
         " Databricks CLI, accepts `--json`. It prints one envelope on stdout and nothing else"
         " there. Logs, including the Databricks CLI's output, go to stderr.\n",
         f"```json\n{example}\n```\n",
@@ -159,7 +159,7 @@ def _json_page(commands: dict[str, TyperCommand]) -> str:
         *_shape(TypeAdapter(Diagnostic).json_schema()),
         "## Results\n\nEach command's page describes its `result`.\n",
         "\n".join(
-            f"- [`nstx {name}`](commands/{page_link(name)}): {registered.help}"
+            f"- [`nsx {name}`](commands/{page_link(name)}): {registered.help}"
             for name, registered in commands.items()
             if name not in PASSED_THROUGH
         )
@@ -168,19 +168,19 @@ def _json_page(commands: dict[str, TyperCommand]) -> str:
         _table(
             ["Code", "Meaning"], [f"| {code} | {meaning} |" for code, meaning in EXIT_CODES.items()]
         ),
-        "## Rule IDs\n\nRule IDs are `NSTX` plus three digits. An ID never changes meaning, and a"
+        "## Rule IDs\n\nRule IDs are `NSX` plus three digits. An ID never changes meaning, and a"
         " retired ID is never reused. The [Rules index](rules/index.md) lists every Rule by"
         " series.\n",
-        "`nstx schema <unknown kind>` reports `NSTX102` and exits 2, because the mistake is on"
-        " the command line. Every `NSTX1xx` and `NSTX2xx` rule exits 1 when found in a project,"
-        " and so does every `NSTX3xx` rule, which `nstx validate --platform` finds in the"
-        " workspace. A diagnostic with `severity` set to `warning`, such as `NSTX129`, is"
+        "`nsx schema <unknown kind>` reports `NSX102` and exits 2, because the mistake is on"
+        " the command line. Every `NSX1xx` and `NSX2xx` rule exits 1 when found in a project,"
+        " and so does every `NSX3xx` rule, which `nsx validate --platform` finds in the"
+        " workspace. A diagnostic with `severity` set to `warning`, such as `NSX129`, is"
         " reported and the command still exits 0.\n",
-        "When `nstx deploy` refreshes an Environment and a pipeline update fails, the"
-        " diagnostic's `message` is the pipeline's own error, read from its event log: `NSTX906`,"
-        " `NSTX907` or `NSTX908`, each exiting 2. A pipeline retries a failed update once, so an"
+        "When `nsx deploy` refreshes an Environment and a pipeline update fails, the"
+        " diagnostic's `message` is the pipeline's own error, read from its event log: `NSX906`,"
+        " `NSX907` or `NSX908`, each exiting 2. A pipeline retries a failed update once, so an"
         " error a retry can't fix is reported in about a minute. When no pipeline error can be"
-        " read, Nimblestax reports `NSTX904` with the Databricks CLI's last lines.\n",
+        " read, Nimblestax reports `NSX904` with the Databricks CLI's last lines.\n",
     ]
     description = "The envelope every command prints with --json, its exit codes and its rule IDs."
     front_matter = _front_matter("JSON output", description, redirects=["json-output"])
@@ -195,7 +195,7 @@ def _results(callback: Any) -> list[type[BaseModel]]:
 
 def _command_page(name: str, registered: TyperCommand, results: list[type[BaseModel]]) -> str:
     sections = [*_command_sections(name, registered, results, "##"), _exit_codes()]
-    return _front_matter(f"nstx {name}", registered.help or "") + "\n" + "\n".join(sections)
+    return _front_matter(f"nsx {name}", registered.help or "") + "\n" + "\n".join(sections)
 
 
 def _group_page(group: str, registered: Any, behind: dict[str, Any]) -> str:
@@ -206,7 +206,7 @@ def _group_page(group: str, registered: Any, behind: dict[str, Any]) -> str:
         sections.append(f"## {inner}\n\n{command.help}\n")
         sections += _command_sections(name, command, _results(behind[name]), "###")
     sections.append(_exit_codes())
-    return _front_matter(f"nstx {group}", registered.help or "") + "\n" + "\n".join(sections)
+    return _front_matter(f"nsx {group}", registered.help or "") + "\n" + "\n".join(sections)
 
 
 def _command_sections(
@@ -216,7 +216,7 @@ def _command_sections(
     arguments = [p for p in registered.params if isinstance(p, TyperArgument)]
     options = [p for p in registered.params if isinstance(p, TyperOption)]
     shown = [f"<{p.name}>" if p.required else f"[<{p.name}>]" for p in arguments]
-    usage = " ".join(["nstx", name, *shown, "[OPTIONS]"])
+    usage = " ".join(["nsx", name, *shown, "[OPTIONS]"])
     sections = [f"```console\n$ {usage}\n```\n"]
     if arguments:
         rows = [f"| `{p.name}` | {getattr(p, 'help', '')} |" for p in arguments]
@@ -241,15 +241,15 @@ def _exit_codes() -> str:
 
 def _passed_through_page(name: str, registered: TyperCommand) -> str:
     sections = [
-        f"```console\n$ nstx {name} <arguments>\n```\n",
-        "It runs the Databricks CLI Nimblestax runs, the version `nstx --version` names, with every"
+        f"```console\n$ nsx {name} <arguments>\n```\n",
+        "It runs the Databricks CLI Nimblestax runs, the version `nsx --version` names, with every"
         " argument passed through as you wrote it. It prints what the Databricks CLI prints and"
-        " exits with its exit code, so it has no `--json`. `nstx databricks --help` prints the"
+        " exits with its exit code, so it has no `--json`. `nsx databricks --help` prints the"
         " Databricks CLI's help.\n",
         "If Nimblestax can't find or download its Databricks CLI, it reports a diagnostic and exits"
         " 2.\n",
     ]
-    return _front_matter(f"nstx {name}", registered.help or "") + "\n" + "\n".join(sections)
+    return _front_matter(f"nsx {name}", registered.help or "") + "\n" + "\n".join(sections)
 
 
 def _takes(option: TyperOption) -> str:
@@ -299,7 +299,7 @@ def _table(columns: list[str], rows: list[str]) -> str:
 
 def _rules_index() -> str:
     sections = [
-        "A Rule's ID is `NSTX` plus three digits, and its first digit is its series. Each Rule's"
+        "A Rule's ID is `NSX` plus three digits, and its first digit is its series. Each Rule's"
         " page says what it checks, why, an example that fails and the fix.\n"
     ]
     for series, covers in SERIES.items():
@@ -339,7 +339,7 @@ def _example(rule: Rule) -> str:
         for path, text in example.files.items()
     ]
     these = "these files" if len(files) > 1 else "this file"
-    lead = f"Write {these} into the project `nstx init` creates, and `nstx validate` {fails}:"
+    lead = f"Write {these} into the project `nsx init` creates, and `nsx validate` {fails}:"
     return f"{lead}\n\n" + "\n".join(files)
 
 

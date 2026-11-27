@@ -1,12 +1,12 @@
 ---
-title: nstx init
+title: nsx init
 description: Create a working project in a folder, by default the current one.
 generated: true
 nimblestax_version: 0.1.0
 ---
 
 ```console
-$ nstx init [<folder>] [OPTIONS]
+$ nsx init [<folder>] [OPTIONS]
 ```
 
 ## Arguments

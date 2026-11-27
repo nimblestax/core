@@ -222,7 +222,7 @@ def _literal(value: str | None) -> str:
 
 def _missing_file(file: str, data: str) -> Diagnostic:
     return error(
-        "NSTX112",
+        "NSX112",
         file,
         f"`{data}` doesn't exist beside this file.",
         "Correct `file`, or add the data file to the same folder.",
@@ -232,7 +232,7 @@ def _missing_file(file: str, data: str) -> Diagnostic:
 def _wrong_header(file: str, header: list[str], columns: list[str]) -> Diagnostic:
     found = ", ".join(header) or "nothing"
     return error(
-        "NSTX113",
+        "NSX113",
         file,
         f"The first line has {found}, but the Seed declares {', '.join(columns)}.",
         "Make the first line name each declared column once, or change `columns`.",
@@ -242,7 +242,7 @@ def _wrong_header(file: str, header: list[str], columns: list[str]) -> Diagnosti
 
 def _wrong_length(file: str, line: int, found: int, expected: int) -> Diagnostic:
     return error(
-        "NSTX114",
+        "NSX114",
         file,
         f"This row has {found} values, but the Seed has {expected} columns.",
         "Give the row one value per column. Quote any value that contains a comma.",
@@ -252,7 +252,7 @@ def _wrong_length(file: str, line: int, found: int, expected: int) -> Diagnostic
 
 def _wrong_value(file: str, line: int, column: str, value: str, sql_type: str) -> Diagnostic:
     return error(
-        "NSTX114",
+        "NSX114",
         file,
         f"`{column}` is `{value}`, which isn't a valid {sql_type}.",
         f"Correct the value, or change the type of `{column}` in the Seed's config file.",
@@ -263,7 +263,7 @@ def _wrong_value(file: str, line: int, column: str, value: str, sql_type: str) -
 def _unsupported_type(file: str, sql_type: str) -> Diagnostic:
     supported = ", ".join((*CHECKS, "DECIMAL(precision, scale)"))
     return error(
-        "NSTX115",
+        "NSX115",
         file,
         f"Nimblestax can't check a Seed's values against `{sql_type}`.",
         f"Use one of: {supported}.",
@@ -272,7 +272,7 @@ def _unsupported_type(file: str, sql_type: str) -> Diagnostic:
 
 def _unreadable(file: str, problem: Exception) -> Diagnostic:
     return error(
-        "NSTX107",
+        "NSX107",
         file,
         f"This file can't be read as CSV: {problem}",
         "Save the file as UTF-8, and close every quoted value.",

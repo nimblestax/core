@@ -17,12 +17,12 @@ from nimblestax.load.project import load
 runner = CliRunner()
 
 
-def nstx(project: Path, *args: str):
+def nsx(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
 def init(project: Path, *args: str) -> Path:
-    """The project `nstx init` writes, with a `finance` Domain beside `sales`."""
+    """The project `nsx init` writes, with a `finance` Domain beside `sales`."""
     assert runner.invoke(app, ["init", str(project), *args]).exit_code == 0
     platform = project / "nimblestax.platform.yaml"
     platform.write_text(platform.read_text().replace("  - sales\n", "  - sales\n  - finance\n"))
@@ -65,7 +65,7 @@ def set_environments(project: Path, block: str) -> None:
 
 
 def compiled(project: Path) -> dict:
-    result = nstx(project, "compile")
+    result = nsx(project, "compile")
     assert result.exit_code == 0, result.output
     return yaml.safe_load((project / "build/databricks.yaml").read_text())
 

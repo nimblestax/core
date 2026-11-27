@@ -1,5 +1,5 @@
-"""Nimblestax Skills: `nstx init` installs them, `nstx validate` warns on drift, and
-`nstx skills update` refreshes them without losing local edits."""
+"""Nimblestax Skills: `nsx init` installs them, `nsx validate` warns on drift, and
+`nsx skills update` refreshes them without losing local edits."""
 
 import json
 import os
@@ -93,7 +93,7 @@ def test_init_writes_identical_copies_using_only_standard_fields(tmp_path: Path)
 
 def test_no_skill_runs_nimblestax_deploy():
     for name, text in skills.shipped().items():
-        assert "nstx deploy" not in text, name
+        assert "nsx deploy" not in text, name
 
 
 SOURCE_SKILL = ".agents/skills/nimblestax-add-source/SKILL.md"
@@ -120,9 +120,9 @@ def test_validate_warns_when_a_skill_is_from_another_nimblestax_and_still_passes
     envelope = json.loads(result.stdout)
     assert envelope["ok"] is True
     [found] = envelope["diagnostics"]
-    assert (found["rule"], found["severity"], found["file"]) == ("NSTX129", "warning", SOURCE_SKILL)
+    assert (found["rule"], found["severity"], found["file"]) == ("NSX129", "warning", SOURCE_SKILL)
     assert "0.0.1" in found["message"]
-    assert "nstx skills update" in found["fix"]
+    assert "nsx skills update" in found["fix"]
 
 
 def test_validate_prints_a_drift_warning_beside_valid(
@@ -135,7 +135,7 @@ def test_validate_prints_a_drift_warning_beside_valid(
     result = runner.invoke(app, ["validate"])
 
     assert result.exit_code == 0
-    assert f"NSTX129 {SOURCE_SKILL} (warning): " in result.stdout
+    assert f"NSX129 {SOURCE_SKILL} (warning): " in result.stdout
     assert result.stdout.rstrip().endswith("Valid.")
 
 
@@ -160,7 +160,7 @@ def outside_any_repo(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def git_repo_ignoring(folder: Path, pattern: str) -> None:
     subprocess.run(["git", "init", "-q", str(folder)], check=True)
-    # Not `.gitignore`, which `nstx init` writes its own of.
+    # Not `.gitignore`, which `nsx init` writes its own of.
     (folder / ".git/info/exclude").write_text(f"{pattern}\n")
 
 
@@ -175,7 +175,7 @@ def test_init_warns_when_git_ignores_the_claude_folder(tmp_path: Path):
     assert envelope["ok"] is True
     [found] = envelope["diagnostics"]
     assert (found["rule"], found["severity"], found["file"]) == (
-        "NSTX914",
+        "NSX914",
         "warning",
         ".claude/skills",
     )
@@ -254,7 +254,7 @@ def test_skills_update_stops_on_a_local_edit_shows_it_and_writes_nothing(
     envelope = json.loads(result.stdout)
     [found] = envelope["diagnostics"]
     assert (found["rule"], found["file"]) == (
-        "NSTX915",
+        "NSX915",
         ".claude/skills/nimblestax-add-model/SKILL.md",
     )
     assert "-6. Our own step." in found["message"]

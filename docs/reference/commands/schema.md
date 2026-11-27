@@ -1,12 +1,12 @@
 ---
-title: nstx schema
+title: nsx schema
 description: Print a Kind's fields from the installed Nimblestax. Needs no project.
 generated: true
 nimblestax_version: 0.1.0
 ---
 
 ```console
-$ nstx schema <kind> [OPTIONS]
+$ nsx schema <kind> [OPTIONS]
 ```
 
 ## Arguments

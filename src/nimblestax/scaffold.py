@@ -1,4 +1,4 @@
-"""`nstx init`: writes a working project from the packaged templates."""
+"""`nsx init`: writes a working project from the packaged templates."""
 
 import json
 import re
@@ -23,10 +23,10 @@ def refuse_existing_project(root: Path) -> None:
     """Writing over a project would lose its Platform Contract and every edited starter file."""
     if (root / platform.FILE_NAME).exists():
         found = error(
-            "NSTX909",
+            "NSX909",
             platform.FILE_NAME,
             f"{root} already holds a Nimblestax project.",
-            "Run `nstx init` in another folder, or give it one, as `nstx init <folder>`.",
+            "Run `nsx init` in another folder, or give it one, as `nsx init <folder>`.",
         )
         raise Failure([found], USAGE_OR_ENVIRONMENT)
 
@@ -35,7 +35,7 @@ def require_project(root: Path) -> None:
     """For a command that writes into a project, so it never writes into another folder."""
     if not (root / platform.FILE_NAME).is_file():
         found = error(
-            "NSTX107",
+            "NSX107",
             platform.FILE_NAME,
             f"{root} holds no Nimblestax project, so there's no `{platform.FILE_NAME}` to read.",
             "Run the command in a project's folder, or give it one with `--project <folder>`.",
@@ -60,7 +60,7 @@ def write_project(root: Path, host: str, ci: str, naming_style: str) -> None:
 
 
 def examples() -> list[str]:
-    """The example projects `nstx init --example` writes, by name."""
+    """The example projects `nsx init --example` writes, by name."""
     return sorted(
         entry.name for entry in (files("nimblestax") / "examples").iterdir() if entry.is_dir()
     )
@@ -70,7 +70,7 @@ def refuse_unknown_example(example: str) -> None:
     known = examples()
     if example not in known:
         found = error(
-            "NSTX916",
+            "NSX916",
             "",
             f"`{example}` isn't an example Nimblestax ships.",
             f"Use one of: {', '.join(known)}.",

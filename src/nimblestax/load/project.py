@@ -85,7 +85,7 @@ def _model_files(folder: Path) -> list[Path]:
 def _outside_a_layer(root: Path, file: Path, contract: Platform) -> Diagnostic:
     layers = ", ".join(contract.model_layers)
     return error(
-        "NSTX127",
+        "NSX127",
         file.relative_to(root).as_posix(),
         "This file isn't in a model Layer's folder, and a Gold Model's Layer is the first folder"
         " under `models/`.",
@@ -119,7 +119,7 @@ def _invalid_name(root: Path, file: Path) -> Diagnostic:
     if suggested[0].isdigit():
         suggested = f"_{suggested}"
     return error(
-        "NSTX117",
+        "NSX117",
         file.relative_to(root).as_posix(),
         f"`{file.stem}` isn't a valid table name. It may hold only letters, digits and"
         " underscores, and may not start with a digit.",
@@ -150,7 +150,7 @@ def _one_table_each(root: Path, documents: list[InDomain]) -> list[Diagnostic]:
 def _same_table(root: Path, files: list[Path]) -> Diagnostic:
     first, *rest = (file.relative_to(root).as_posix() for file in files)
     return error(
-        "NSTX120",
+        "NSX120",
         rest[-1],
         f"{first} and {', '.join(rest)} both configure {files[0].stem} in one Domain's Layer,"
         " and folders inside a Layer only group files, so Nimblestax can't tell which one is"
@@ -162,7 +162,7 @@ def _same_table(root: Path, files: list[Path]) -> Diagnostic:
 def _duplicate(root: Path, files: list[Path]) -> Diagnostic:
     first, *rest = sorted(files, key=lambda file: file.suffix != ".yaml")
     return error(
-        "NSTX120",
+        "NSX120",
         rest[-1].relative_to(root).as_posix(),
         f"{first.name} and {', '.join(file.name for file in rest)} both configure"
         f" {first.stem}, so Nimblestax can't tell which one is meant.",
@@ -187,7 +187,7 @@ def _unlisted(folder: str, domains: list[str]) -> Diagnostic:
     same_but_case = [domain for domain in domains if domain.lower() == folder.lower()]
     if same_but_case:
         return error(
-            "NSTX121",
+            "NSX121",
             file,
             f"`domains` in {platform.FILE_NAME} lists {same_but_case[0]}, not {folder}."
             " Only a file system that ignores case reads this folder for it.",
@@ -195,7 +195,7 @@ def _unlisted(folder: str, domains: list[str]) -> Diagnostic:
             " so it matches the folder's case.",
         )
     return error(
-        "NSTX121",
+        "NSX121",
         file,
         f"`domains` in {platform.FILE_NAME} doesn't list {folder},"
         " so nothing in this folder is validated or deployed.",

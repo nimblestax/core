@@ -1,15 +1,15 @@
 ---
 title: Recover from a failed refresh
-description: What to do when nstx deploy reports NSTX906 or NSTX907, and why landing new data doesn't help.
+description: What to do when nsx deploy reports NSX906 or NSX907, and why landing new data doesn't help.
 ---
 
-`nstx deploy` ships an Environment and then refreshes its tables. If a pipeline update fails, Nimblestax reads the pipeline's own error and reports it. A pipeline retries a failed update once, so a one-off blip passes, and an error a retry can't fix is reported in about a minute.
+`nsx deploy` ships an Environment and then refreshes its tables. If a pipeline update fails, Nimblestax reads the pipeline's own error and reports it. A pipeline retries a failed update once, so a one-off blip passes, and an error a retry can't fix is reported in about a minute.
 
 Two failures need a change to the project before the next deploy can pass.
 
 ## An Expectation names a column bronze doesn't have yet
 
-`NSTX906` (`pipeline-column-not-found`), with a message such as:
+`NSX906` (`pipeline-column-not-found`), with a message such as:
 
 ```text
 [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column, variable, or function parameter with name `region` cannot be resolved.
@@ -24,7 +24,7 @@ If no Expectation names the column, the column's name is wrong: correct it in th
 
 ## A `fail` Expectation fired
 
-`NSTX907` (`expectation-failed`), with a message such as:
+`NSX907` (`expectation-failed`), with a message such as:
 
 ```text
 [EXPECTATION_VIOLATION.VERBOSITY_ALL] Flow 'orders' failed to meet the expectation. Violated expectations: 'amount_not_negative'
@@ -48,4 +48,4 @@ silver:
 
 ## Any other failure
 
-`NSTX908` (`pipeline-failed`) carries the pipeline's error as its message. Fix the cause and deploy again; the pipeline's event log in the workspace has the full detail. If Nimblestax couldn't read any pipeline error, it reports `NSTX904` with the Databricks CLI's last lines, and the full output is on stderr.
+`NSX908` (`pipeline-failed`) carries the pipeline's error as its message. Fix the cause and deploy again; the pipeline's event log in the workspace has the full detail. If Nimblestax couldn't read any pipeline error, it reports `NSX904` with the Databricks CLI's last lines, and the full output is on stderr.

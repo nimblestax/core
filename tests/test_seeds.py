@@ -24,7 +24,7 @@ columns:
 """
 
 
-def nstx(project: Path, *args: str):
+def nsx(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -41,13 +41,13 @@ def declare_seed(project: Path, csv: str, config: str = CONFIG) -> None:
 
 
 def compiled(project: Path) -> str:
-    result = nstx(project, "compile")
+    result = nsx(project, "compile")
     assert result.exit_code == 0, result.output
     return (project / COMPILED).read_text()
 
 
 def failures(project: Path) -> list[dict]:
-    result = nstx(project, "validate", "--json")
+    result = nsx(project, "validate", "--json")
     assert result.exit_code == 1, result.output
     return json.loads(result.stdout)["diagnostics"]
 
@@ -55,7 +55,7 @@ def failures(project: Path) -> list[dict]:
 def test_a_valid_seed_validates_and_lands_in_its_domains_silver(project: Path):
     declare_seed(project, "code,vat_rate\nAU,0.10\nNZ,0.15\n")
 
-    assert nstx(project, "validate").exit_code == 0
+    assert nsx(project, "validate").exit_code == 0
 
     code = compiled(project)
     assert (
@@ -84,9 +84,9 @@ def test_a_gold_model_reads_a_seed_through_a_logical_name(project: Path):
     gold = project / "domains/sales/models/gold/fct_orders.sql"
     gold.write_text("SELECT code FROM sales.silver.countries\n")
 
-    assert nstx(project, "validate").exit_code == 0
+    assert nsx(project, "validate").exit_code == 0
 
-    nstx(project, "compile")
+    nsx(project, "compile")
     assert (
         "FROM ${catalog_sales_silver}.${schema_sales_silver}.countries"
         in (project / "build/src/sales/gold/fct_orders.sql").read_text()
@@ -109,7 +109,7 @@ def test_a_domain_with_only_seeds_still_gets_a_pipeline_that_runs_before_gold(pr
     gold = project / "domains/sales/models/gold/fct_orders.sql"
     gold.write_text("SELECT code FROM sales.silver.countries\n")
 
-    assert nstx(project, "compile").exit_code == 0
+    assert nsx(project, "compile").exit_code == 0
 
     bundle = yaml.safe_load((project / "build/databricks.yaml").read_text())
     assert "sales_ingest" in bundle["resources"]["pipelines"]
@@ -181,7 +181,7 @@ def test_a_value_within_its_declared_type_is_accepted(project: Path, sql_type: s
     config = f"kind: seed\nversion: 1\nfile: countries.csv\ncolumns:\n  value: {sql_type}\n"
     declare_seed(project, f"value\n{value}\n", config)
 
-    result = nstx(project, "validate")
+    result = nsx(project, "validate")
 
     assert result.exit_code == 0, result.output
 
@@ -315,7 +315,7 @@ def test_values_stay_literal_in_generated_sql(project: Path, value: str, literal
 def test_a_value_that_looks_like_a_placeholder_prints_for_an_environment(project: Path):
     declare_seed(project, "code,vat_rate\n${price},0.10\n")
 
-    result = nstx(project, "compile", "--env", "dev")
+    result = nsx(project, "compile", "--env", "dev")
 
     assert result.exit_code == 0, result.output
 

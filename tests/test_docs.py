@@ -123,12 +123,10 @@ def test_links_to_pages_sections_and_websites_are_fine(tmp_path: Path):
 
 
 def test_a_broken_reference_style_link_is_a_problem(tmp_path: Path):
-    write(
-        tmp_path / "index.md", PAGE + "See [NSTX201][nstx201].\n\n[nstx201]: reference/nstx201.md\n"
-    )
+    write(tmp_path / "index.md", PAGE + "See [NSX201][nsx201].\n\n[nsx201]: reference/nsx201.md\n")
 
     assert docs_problems(tmp_path) == [
-        "index.md: links to reference/nstx201.md, which doesn't exist"
+        "index.md: links to reference/nsx201.md, which doesn't exist"
     ]
 
 
@@ -144,7 +142,7 @@ def test_a_link_out_of_the_docs_folder_is_a_problem(tmp_path: Path):
 def test_links_shown_as_code_are_not_checked(tmp_path: Path):
     write(
         tmp_path / "index.md",
-        PAGE + "Write `[NSTX201](nstx201.md)`, like this:\n\n```md\n![Figure](nope.svg)\n```\n",
+        PAGE + "Write `[NSX201](nsx201.md)`, like this:\n\n```md\n![Figure](nope.svg)\n```\n",
     )
 
     assert docs_problems(tmp_path) == []

@@ -12,7 +12,7 @@
 
 Nimblestax brings the software development lifecycle to Databricks. Today it covers pipelines, from bronze to gold: config-driven, reviewed in pull requests, tested, and promoted from dev to prod. It grows to cover more of the platform.
 
-**Status:** early development, and below 1.0, so a minor release may need edits to your project. Install it into your project with `uv add --dev nimblestax`, which gives you the `nstx` command and `nimblestax`, its long form. The Plan shown on [nimblestax.com](https://nimblestax.com) is illustrative: Nimblestax has no Plan command today.
+**Status:** early development, and below 1.0, so a minor release may need edits to your project. Install it into your project with `uv add --dev nimblestax`, which gives you the `nsx` command and `nimblestax`, its long form. The Plan shown on [nimblestax.com](https://nimblestax.com) is illustrative: Nimblestax has no Plan command today.
 
 A pipeline is YAML and SQL in your repo. A Source says where data lands:
 
@@ -35,7 +35,7 @@ FROM sales.silver.orders
 Nimblestax compiles that for each Environment:
 
 ```console
-$ nstx compile --env dev
+$ nsx compile --env dev
 CREATE OR REFRESH STREAMING TABLE dev_sales.bronze.orders
 TBLPROPERTIES ('pipelines.reset.allowed' = 'false')
 AS SELECT *
@@ -49,18 +49,18 @@ FROM dev_sales.silver.orders
 And it catches mistakes before anything touches a workspace:
 
 ```console
-$ nstx validate
-NSTX201 domains/sales/models/fct_orders.sql: sales.silver.ordrs isn't a table in this project.
+$ nsx validate
+NSX201 domains/sales/models/fct_orders.sql: sales.silver.ordrs isn't a table in this project.
   Fix: Declare a Source or Gold Model with this name, or correct the Logical Name.
 ```
 
 ## What works today
 
-- `nstx init` creates a working project, with GitHub Actions workflows.
-- `nstx validate` checks config and SQL references with no workspace. A Model's dependencies come from its SQL, with no list to keep: CTEs, aliases and `STREAM(...)` just work, and anything Nimblestax can't read, such as `IDENTIFIER(...)`, is an error rather than a guess.
-- `nstx compile` writes generated code, or prints it for one Environment.
-- `nstx deploy` deploys to an Environment and refreshes its tables.
-- `nstx schema` prints any Kind's fields.
+- `nsx init` creates a working project, with GitHub Actions workflows.
+- `nsx validate` checks config and SQL references with no workspace. A Model's dependencies come from its SQL, with no list to keep: CTEs, aliases and `STREAM(...)` just work, and anything Nimblestax can't read, such as `IDENTIFIER(...)`, is an error rather than a guess.
+- `nsx compile` writes generated code, or prints it for one Environment.
+- `nsx deploy` deploys to an Environment and refreshes its tables.
+- `nsx schema` prints any Kind's fields.
 - Every command has [`--json` output](docs/reference/json-output.md), rule IDs and fixed exit codes.
 
 ## The Nimblestax Way

@@ -22,7 +22,7 @@ runner = CliRunner()
 PLATFORM = "nimblestax.platform.yaml"
 
 
-def nstx(project: Path, *args: str):
+def nsx(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -39,7 +39,7 @@ def edit(project: Path, old: str, new: str) -> None:
 
 
 def failures(project: Path) -> list[dict]:
-    result = nstx(project, "validate", "--json")
+    result = nsx(project, "validate", "--json")
     assert result.exit_code == 1, result.output
     return json.loads(result.stdout)["diagnostics"]
 
@@ -54,14 +54,14 @@ def failures(project: Path) -> list[dict]:
         ("  style: domain-catalogs\n", "  style: 7\n", "naming.style"),
     ],
 )
-def test_a_bad_platform_contract_names_the_field_in_a_nstx106(
+def test_a_bad_platform_contract_names_the_field_in_a_nsx106(
     project: Path, old: str, new: str, field: str
 ):
     edit(project, old, new)
 
     diagnostics = failures(project)
 
-    assert {d["rule"] for d in diagnostics} == {"NSTX106"}
+    assert {d["rule"] for d in diagnostics} == {"NSX106"}
     assert any(d["message"].startswith(f"{field}: ") for d in diagnostics), diagnostics
     assert all(d["file"] == PLATFORM for d in diagnostics)
 
@@ -166,7 +166,7 @@ def test_a_contract_is_upgraded_through_every_step_to_the_latest_version(
         ('  schema: "{layer!r}"', "naming.schema"),
     ],
 )
-def test_a_version_1_pattern_with_anything_but_known_placeholders_fails_with_a_nstx106(
+def test_a_version_1_pattern_with_anything_but_known_placeholders_fails_with_a_nsx106(
     project: Path, new: str, field: str
 ):
     old = '  catalog: "{env}_{domain}"' if "catalog" in new else '  schema: "{layer}"'
@@ -174,7 +174,7 @@ def test_a_version_1_pattern_with_anything_but_known_placeholders_fails_with_a_n
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "NSTX106"
+    assert diagnostic["rule"] == "NSX106"
     assert diagnostic["message"].startswith(f"{field}: ")
     assert "{env}, {domain} and {layer}" in diagnostic["message"]
 
@@ -183,7 +183,7 @@ def test_a_project_with_no_domains_compiles_to_a_package_with_no_pipelines(proje
     edit(project, "domains:\n  - sales\n", "domains: []\n")
     shutil.rmtree(project / "domains")
 
-    result = nstx(project, "compile")
+    result = nsx(project, "compile")
 
     assert result.exit_code == 0, result.output
     bundle = yaml.safe_load((project / "build/databricks.yaml").read_text())
@@ -214,7 +214,7 @@ def test_test_and_prod_use_devs_host_unless_they_set_their_own(project: Path):
     }
 
 
-def test_a_contract_with_no_host_on_dev_fails_with_a_nstx122(project: Path):
+def test_a_contract_with_no_host_on_dev_fails_with_a_nsx122(project: Path):
     environments(
         project,
         "environments:\n  dev:\n    role: development\n"
@@ -223,12 +223,12 @@ def test_a_contract_with_no_host_on_dev_fails_with_a_nstx122(project: Path):
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "NSTX122"
+    assert diagnostic["rule"] == "NSX122"
     assert diagnostic["file"] == PLATFORM
     assert "dev" in diagnostic["fix"]
 
 
-def test_two_default_environments_fail_with_a_nstx123(project: Path):
+def test_two_default_environments_fail_with_a_nsx123(project: Path):
     environments(
         project,
         f"environments:\n  dev:\n    host: {PLACEHOLDER_HOST}\n    role: development\n"
@@ -238,7 +238,7 @@ def test_two_default_environments_fail_with_a_nstx123(project: Path):
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "NSTX123"
+    assert diagnostic["rule"] == "NSX123"
     assert "dev" in diagnostic["message"] and "test" in diagnostic["message"]
 
 
@@ -257,11 +257,11 @@ def test_the_default_environment_is_the_one_marked_default_or_else_dev(
 def test_deploy_without_env_exits_2_with_a_fix_whatever_the_default(project: Path, marked: str):
     environments(project, DEV_ONLY.format(host=PLACEHOLDER_HOST) + marked)
 
-    result = nstx(project, "deploy", "--json")
+    result = nsx(project, "deploy", "--json")
 
     assert result.exit_code == 2, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "NSTX901"
+    assert diagnostic["rule"] == "NSX901"
     assert "--env dev" in diagnostic["fix"]
 
 
@@ -277,7 +277,7 @@ def test_a_contract_with_a_host_on_every_environment_validates_unchanged(project
         ),
     )
 
-    result = nstx(project, "validate")
+    result = nsx(project, "validate")
 
     assert result.exit_code == 0, result.output
     assert load(project).platform.hosts == hosts

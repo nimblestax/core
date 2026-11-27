@@ -1,4 +1,4 @@
-"""`nstx preview`: a working tree, deployed to its own schemas in dev's catalogs, for the person
+"""`nsx preview`: a working tree, deployed to its own schemas in dev's catalogs, for the person
 signed in or, with `--pr`, for a pull request.
 
 A Preview Environment builds every table. Its bundle state sits in its own folder under whoever
@@ -68,11 +68,11 @@ def refuse_example(project: Project) -> None:
     """An example already runs in catalogs of its own, so it has no preview."""
     if project.platform.name in scaffold.examples():
         found = error(
-            "NSTX921",
+            "NSX921",
             "",
             f"`{project.platform.name}` is an example, which already runs in catalogs of its own,"
             " so it has no Preview Environment.",
-            f"Deploy it directly, with `nstx deploy --env"
+            f"Deploy it directly, with `nsx deploy --env"
             f" {project.platform.development_environment}`.",
         )
         raise Failure([found], USAGE_OR_ENVIRONMENT)
@@ -117,22 +117,22 @@ def _taken(schema: str, labels: dict[str, str]) -> Diagnostic:
     project = labels.get(bundle.PROJECT_LABEL)
     number = labels.get(bundle.PULL_REQUEST_LABEL)
     other = bundle.pull_request(int(number)) if number and number.isdecimal() else None
-    remove = other.remove if other else "nstx preview down"
+    remove = other.remove if other else "nsx preview down"
     if project is None:
         whose = "Nimblestax didn't create it"
     else:
         owner = other.owner if other else labels.get(bundle.USER_LABEL)
         whose = f"Nimblestax created it for the project `{project}`, for {owner}"
     return error(
-        "NSTX920",
+        "NSX920",
         "",
         f"The schema `{schema}` already exists, and {whose}. Your preview never deploys into, or"
         " removes, a schema it didn't create.",
         (
-            f"Remove the other preview with `{remove}` from `{project}`, then run `nstx"
+            f"Remove the other preview with `{remove}` from `{project}`, then run `nsx"
             " preview` again."
             if project
-            else "Drop the schema if nobody needs it, then run `nstx preview` again."
+            else "Drop the schema if nobody needs it, then run `nsx preview` again."
         ),
     )
 
@@ -161,10 +161,10 @@ def _fence(project: Project, target: bundle.Preview, deployed: list[tuple[str, s
     if outside:
         listed = ", ".join(f"`{schema}`" for schema in outside)
         found = error(
-            "NSTX922",
+            "NSX922",
             "",
             f"The preview's bundle state holds {listed}, outside its `{target.prefix}*` schemas"
-            f" in {platform.development_environment}'s catalogs. `nstx preview down` removes"
+            f" in {platform.development_environment}'s catalogs. `nsx preview down` removes"
             " nothing rather than drop it.",
             "Find out how it got into the preview's bundle state before removing anything. Drop"
             " the preview's own schemas by hand if you need to.",
