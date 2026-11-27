@@ -23,6 +23,7 @@ Write these files into the project `nstx init` creates, and `nstx validate` fail
 kind: model
 version: 1
 sql: fct_returns.sql
+owner: sales-analytics
 ```
 
 `domains/sales/models/fct_returns.sql`:

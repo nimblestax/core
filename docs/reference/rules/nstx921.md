@@ -1,13 +1,13 @@
 ---
 title: NSTX921 example-has-no-preview
-description: '`nstx preview` was run in an example project, such as Kettle.'
+description: '`nstx preview`, or `nstx test`, was run in an example project, such as Kettle.'
 generated: true
 nimblestax_version: 0.1.0
 ---
 
 ## What it checks
 
-`nstx preview` was run in an example project, such as Kettle.
+`nstx preview`, or `nstx test`, was run in an example project, such as Kettle.
 
 ## Why
 

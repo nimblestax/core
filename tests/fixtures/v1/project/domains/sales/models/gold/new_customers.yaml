@@ -1,3 +1,4 @@
 kind: model
 version: 1
 sql: new_customers.sql
+owner: sales-analytics

@@ -60,6 +60,7 @@ A Rule's ID is `NSTX` plus three digits, and its first digit is its series. Each
 | [`NSTX210`](nstx210.md) | `read-against-build-order` | A Gold Model reads bronze. |
 | [`NSTX211`](nstx211.md) | `stream-of-upsert-silver` | A Gold Model reads silver that has `keys` with `STREAM(...)`. |
 | [`NSTX212`](nstx212.md) | `stream-of-materialized-view` | A Gold Model reads a Seed, or a Gold Model that doesn't stream, with `STREAM(...)`. |
+| [`NSTX213`](nstx213.md) | `test-references-unknown-table` | A `references` Test names a table that isn't in the project. |
 
 ## `NSTX3xx` The workspace a project deploys to
 
@@ -68,6 +69,13 @@ A Rule's ID is `NSTX` plus three digits, and its first digit is its series. Each
 | [`NSTX301`](nstx301.md) | `missing-catalog` | With `--platform`, a catalog the project's tables need isn't in the Environment's workspace, or the identity Nimblestax signs in as can't see it. |
 | [`NSTX302`](nstx302.md) | `missing-schema` | With `--platform`, a schema the project's tables need isn't in its catalog in the Environment's workspace, or the identity Nimblestax signs in as can't see it. |
 | [`NSTX303`](nstx303.md) | `developer-group-missing-grant` | With `--platform` on the Development Environment, the group `developers` names lacks `USE CATALOG`, `USE SCHEMA`, `CREATE SCHEMA` or `READ VOLUME` on one of its catalogs. |
+
+## `NSTX4xx` Tests on a Preview Environment's tables
+
+| Rule | Name | What it checks |
+| --- | --- | --- |
+| [`NSTX401`](nstx401.md) | `test-failed` | A Gold Model's Test failed on its table in your Preview Environment. |
+| [`NSTX402`](nstx402.md) | `test-could-not-run` | The SQL warehouse refused a Test's query. |
 
 ## `NSTX9xx` The command line and running against Databricks
 
@@ -93,5 +101,9 @@ A Rule's ID is `NSTX` plus three digits, and its first digit is its series. Each
 | [`NSTX918`](nstx918.md) | `build-package-changed` | A file in the Build Package `nstx deploy --package` was given differs from what was built. |
 | [`NSTX919`](nstx919.md) | `manifest-copies-not-removed` | A deploy succeeded, but old copies of the Deployment Manifest couldn't be removed. |
 | [`NSTX920`](nstx920.md) | `preview-schema-taken` | `nstx preview` would deploy into a schema that another project, another person, or someone by hand already created. |
-| [`NSTX921`](nstx921.md) | `example-has-no-preview` | `nstx preview` was run in an example project, such as Kettle. |
+| [`NSTX921`](nstx921.md) | `example-has-no-preview` | `nstx preview`, or `nstx test`, was run in an example project, such as Kettle. |
 | [`NSTX922`](nstx922.md) | `preview-down-outside-fence` | `nstx preview down` found a schema in the preview's bundle state outside your `u_<user>__` schemas, or outside the Development Environment's catalogs. |
+| [`NSTX923`](nstx923.md) | `no-warehouse-for-tests` | `nstx test` can't tell which SQL warehouse to run Tests on. |
+| [`NSTX924`](nstx924.md) | `no-preview-to-test` | `nstx test` found no Preview Environment of this project to run Tests on. |
+| [`NSTX925`](nstx925.md) | `no-databricks-sql-access` | The identity `nstx test` runs as isn't allowed to use Databricks SQL. |
+| [`NSTX926`](nstx926.md) | `no-such-model` | `--model` names no Gold Model in the project, or a name more than one Gold Model has. |

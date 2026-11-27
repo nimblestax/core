@@ -26,7 +26,9 @@ def project(tmp_path: Path) -> Path:
 def write_model(project: Path, name: str, query: str) -> str:
     folder = project / "domains/sales/models/gold"
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / f"{name}.yaml").write_text(f"kind: model\nversion: 1\nsql: {name}.sql\n")
+    (folder / f"{name}.yaml").write_text(
+        f"kind: model\nversion: 1\nsql: {name}.sql\nowner: sales-analytics\n"
+    )
     (folder / f"{name}.sql").write_text(query)
     return f"domains/sales/models/gold/{name}.sql"
 

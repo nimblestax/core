@@ -2,3 +2,4 @@
 kind: model
 version: 1
 sql: dim_product_prices.sql
+owner: sales-analytics

@@ -78,3 +78,5 @@ developers: data-engineers
 ```
 
 That group needs `USE CATALOG`, `USE SCHEMA`, `CREATE SCHEMA` and `READ VOLUME` on the development environment's catalogs, and on no other environment's. `nstx validate --platform` checks it, and fails with [`NSTX303`](../reference/rules/nstx303.md) and the `GRANT` to run when one is missing. Your preview reads nothing of dev's but its landing files, so you can preview a project CI has never deployed.
+
+To run [tests](tests.md) on a preview, the group, and CI's identity for pull request previews, also needs the `databricks-sql-access` entitlement and `CAN USE` on the SQL warehouse `nstx test` runs on.

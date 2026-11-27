@@ -704,7 +704,7 @@ def test_databricks_accepts_a_pull_request_preview_target_apart_from_dev_and_peo
     assert preview["workspace"]["root_path"].endswith("/.bundle/shop/pull-requests/42")
 
 
-def test_the_pull_request_workflow_previews_each_pull_request_as_dev_after_validating(
+def test_the_pull_request_workflow_previews_and_tests_each_pull_request_as_dev_after_validating(
     project: Path,
 ):
     workflow = project / ".github/workflows/nimblestax-pull-request.yaml"
@@ -714,8 +714,10 @@ def test_the_pull_request_workflow_previews_each_pull_request_as_dev_after_valid
     assert preview["needs"] == "validate"
     assert preview["environment"] == "dev"
     runs = [step["run"] for step in preview["steps"] if "run" in step]
+    # Tests run in the same job, so a newer push can't redeploy the preview under them.
     assert runs == [
-        'uvx --from "$NIMBLESTAX_SPEC" nstx preview --pr ${{ github.event.pull_request.number }}'
+        'uvx --from "$NIMBLESTAX_SPEC" nstx preview --pr ${{ github.event.pull_request.number }}',
+        'uvx --from "$NIMBLESTAX_SPEC" nstx test --pr ${{ github.event.pull_request.number }}',
     ]
     # Two pushes to one pull request deploy one after the other, never into one bundle at once.
     assert preview["concurrency"] == {

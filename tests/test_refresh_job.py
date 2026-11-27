@@ -51,7 +51,9 @@ def write_source(project: Path, domain: str, name: str, silver: str = "") -> Non
 def write_model(project: Path, domain: str, name: str, query: str) -> None:
     folder = project / "domains" / domain / "models/gold"
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / f"{name}.yaml").write_text(f"kind: model\nversion: 1\nsql: {name}.sql\n")
+    (folder / f"{name}.yaml").write_text(
+        f"kind: model\nversion: 1\nsql: {name}.sql\nowner: sales-analytics\n"
+    )
     (folder / f"{name}.sql").write_text(query)
 
 

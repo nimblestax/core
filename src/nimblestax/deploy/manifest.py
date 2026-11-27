@@ -23,6 +23,8 @@ COPIES = "manifests"
 KEPT_COPIES = 100
 # A package built outside Git, or before the first commit, has no commit to name its copy by.
 NO_COMMIT = "no-commit"
+# The current manifest, from the bundle root.
+PATH = f"{FOLDER}/{CURRENT}"
 
 
 def manifest(env: str, record: dict, deployed_at: datetime) -> dict:

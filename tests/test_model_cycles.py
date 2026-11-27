@@ -24,7 +24,9 @@ def project(tmp_path: Path) -> Path:
 
 
 def write_model(project: Path, name: str, query: str) -> None:
-    (project / MODELS / f"{name}.yaml").write_text(f"kind: model\nversion: 1\nsql: {name}.sql\n")
+    (project / MODELS / f"{name}.yaml").write_text(
+        f"kind: model\nversion: 1\nsql: {name}.sql\nowner: sales-analytics\n"
+    )
     (project / MODELS / f"{name}.sql").write_text(query)
 
 

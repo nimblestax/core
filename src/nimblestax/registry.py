@@ -77,6 +77,7 @@ SERIES = {
     "NSTX1": "Config files",
     "NSTX2": "SQL and reads between tables",
     "NSTX3": "The workspace a project deploys to",
+    "NSTX4": "Tests on a Preview Environment's tables",
     "NSTX9": "The command line and running against Databricks",
 }
 
@@ -211,7 +212,7 @@ RULES = {
         example=Example(
             {
                 "domains/sales/models/gold/fct_returns.yaml": "kind: model\nversion: 1\n"
-                "sql: fct_returns.sql\n"
+                "sql: fct_returns.sql\nowner: sales-analytics\n"
             }
         ),
         fix="Correct `sql`, or add the SQL file to the same folder.",
@@ -498,7 +499,7 @@ RULES = {
         example=Example(
             {
                 "domains/sales/models/fct_returns.yaml": "kind: model\nversion: 1\n"
-                "sql: fct_returns.sql\n",
+                "sql: fct_returns.sql\nowner: sales-analytics\n",
                 "domains/sales/models/fct_returns.sql": "SELECT order_id\n"
                 "FROM sales.silver.orders\n",
             }
@@ -761,6 +762,23 @@ RULES = {
         ),
         fix="Read the table without `STREAM(...)`, as `FROM sales.silver.countries`.",
     ),
+    "NSTX213": Rule(
+        "test-references-unknown-table",
+        checks="A `references` Test names a table that isn't in the project.",
+        why="A `references` Test checks that every value of a column is a key in another table,"
+        " and reads that table in the same Preview Environment. So the other table must be one"
+        " the project builds: a Source's bronze or silver, a Seed or a Gold Model.",
+        example=Example(
+            {
+                "domains/sales/models/gold/fct_orders.yaml": "kind: model\nversion: 1\n"
+                "sql: fct_orders.sql\nowner: sales-analytics\ntests:\n  - references:\n"
+                "      column: customer_id\n"
+                "      to: sales.gold.dim_customers\n"
+            }
+        ),
+        fix="Correct `to` to the Logical Name of a table in the project, such as"
+        " `shared.gold.dim_customers`.",
+    ),
     "NSTX301": Rule(
         "missing-catalog",
         checks="With `--platform`, a catalog the project's tables need isn't in the"
@@ -810,6 +828,40 @@ RULES = {
             when="`data-engineers` has no `CREATE SCHEMA` on `dev_sales`.",
         ),
         fix="Run the `GRANT` the diagnostic gives, as the catalog's owner.",
+    ),
+    "NSTX401": Rule(
+        "test-failed",
+        checks="A Gold Model's Test failed on its table in your Preview Environment.",
+        why="A Test is a rule about a whole table, such as no two rows sharing an `order_id`."
+        " `nstx test` runs each one on the table your preview built from all of dev's rows, so"
+        " a Test that fails there would fail in dev too. It exits 1.",
+        example=Example(
+            {
+                "domains/sales/models/gold/fct_orders.yaml": "kind: model\nversion: 1\n"
+                "sql: fct_orders.sql\nowner: sales-analytics\ntests:\n  - unique: [order_id]\n"
+            },
+            command="nstx test",
+            when="Two rows of the preview's `fct_orders` have the same `order_id`.",
+        ),
+        fix="Fix the model's SQL or the data it reads, or correct the Test. Then run"
+        " `nstx preview` and `nstx test` again.",
+    ),
+    "NSTX402": Rule(
+        "test-could-not-run",
+        checks="The SQL warehouse refused a Test's query.",
+        why="Each Test runs as one query on the model's table. The warehouse refuses it when the"
+        " Test doesn't match the table, such as a column the table doesn't have. Nimblestax can't"
+        " see a table's columns without a workspace, so `nstx validate` can't catch this. The"
+        " other Tests still run, and `nstx test` exits 1.",
+        example=Example(
+            {
+                "domains/sales/models/gold/fct_orders.yaml": "kind: model\nversion: 1\n"
+                "sql: fct_orders.sql\nowner: sales-analytics\ntests:\n  - unique: [order_no]\n"
+            },
+            command="nstx test",
+            when="`fct_orders` has no column `order_no`.",
+        ),
+        fix="Correct the Test so it matches the model's table, such as a column's name.",
     ),
     "NSTX901": Rule(
         "usage-error",
@@ -1073,12 +1125,62 @@ RULES = {
     ),
     "NSTX921": Rule(
         "example-has-no-preview",
-        checks="`nstx preview` was run in an example project, such as Kettle.",
+        checks="`nstx preview`, or `nstx test`, was run in an example project, such as Kettle.",
         why="An example already runs in catalogs of its own, made for the person who ran it, so a"
         " Preview Environment would add nothing. It exits 2, and changes nothing in the"
         " workspace.",
         example=Example(command="nstx preview", when="The project is Kettle."),
         fix="Deploy the example directly, with `nstx deploy --env <env>`.",
+    ),
+    "NSTX923": Rule(
+        "no-warehouse-for-tests",
+        checks="`nstx test` can't tell which SQL warehouse to run Tests on.",
+        why="Tests run as SQL on a warehouse in the Development Environment's workspace, where"
+        " every Preview Environment lives. With no `warehouse` set, Nimblestax uses the only one"
+        " you can see there, and with several, or none, it won't guess. It exits 2.",
+        example=Example(
+            command="nstx test",
+            when="The workspace has two SQL warehouses, and `nimblestax.platform.yaml` names"
+            " neither.",
+        ),
+        fix="Add `warehouse` under the Development Environment in `nimblestax.platform.yaml`,"
+        " set to the ID of the warehouse your team runs Tests on.",
+    ),
+    "NSTX924": Rule(
+        "no-preview-to-test",
+        checks="`nstx test` found no Preview Environment of this project to run Tests on.",
+        why="Tests run on the tables a Preview Environment built, so the preview must be"
+        " deployed, and its refresh must have succeeded, first. Nimblestax knows it did when the"
+        " preview's Deployment Manifest is in its bundle folder. It exits 2.",
+        example=Example(command="nstx test", when="You haven't run `nstx preview` yet."),
+        fix="Run `nstx preview`, or `nstx preview --pr <number>` for a pull request's preview,"
+        " then `nstx test` again.",
+    ),
+    "NSTX925": Rule(
+        "no-databricks-sql-access",
+        checks="The identity `nstx test` runs as isn't allowed to use Databricks SQL.",
+        why="Tests run as SQL on a warehouse, and a workspace only lets an identity use Databricks"
+        " SQL once it has the `databricks-sql-access` entitlement. A service principal often"
+        " lacks it, because deploying a bundle doesn't need it. It exits 2.",
+        example=Example(
+            command="nstx test --pr 42",
+            when="The Development Environment's deploying identity has no `databricks-sql-access`"
+            " entitlement.",
+        ),
+        fix="Ask a workspace admin to give the identity the `databricks-sql-access` entitlement,"
+        " and `CAN USE` on the SQL warehouse Tests run on.",
+    ),
+    "NSTX926": Rule(
+        "no-such-model",
+        checks="`--model` names no Gold Model in the project, or a name more than one Gold Model"
+        " has.",
+        why="`--model` picks a Gold Model by its name, such as `fct_orders`, or by its Logical"
+        " Name, such as `sales.gold.fct_orders`. Two Domains, or two model Layers of one Domain,"
+        " can each have a model of one name, in its own schema. Such a name could mean either,"
+        " so Nimblestax doesn't guess. It exits 2, before reaching the workspace.",
+        example=Example(command="nstx test --model fct_order"),
+        fix="Give a Gold Model's name, or its Logical Name when more than one model has the name."
+        " The diagnostic lists the ones it could be.",
     ),
     "NSTX922": Rule(
         "preview-down-outside-fence",

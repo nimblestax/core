@@ -1,0 +1,35 @@
+---
+title: NSTX213 test-references-unknown-table
+description: A `references` Test names a table that isn't in the project.
+generated: true
+nimblestax_version: 0.1.0
+---
+
+## What it checks
+
+A `references` Test names a table that isn't in the project.
+
+## Why
+
+A `references` Test checks that every value of a column is a key in another table, and reads that table in the same Preview Environment. So the other table must be one the project builds: a Source's bronze or silver, a Seed or a Gold Model.
+
+## Example
+
+Write this file into the project `nstx init` creates, and `nstx validate` fails:
+
+`domains/sales/models/gold/fct_orders.yaml`:
+
+```yaml
+kind: model
+version: 1
+sql: fct_orders.sql
+owner: sales-analytics
+tests:
+  - references:
+      column: customer_id
+      to: sales.gold.dim_customers
+```
+
+## Fix
+
+Correct `to` to the Logical Name of a table in the project, such as `shared.gold.dim_customers`.

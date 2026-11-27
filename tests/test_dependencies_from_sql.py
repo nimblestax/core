@@ -387,7 +387,7 @@ def finance(project: Path, request) -> tuple[Path, str, str]:
     )
     (folder / "models/gold").mkdir(parents=True)
     (folder / "models/gold/fct_invoices.yaml").write_text(
-        "kind: model\nversion: 1\nsql: fct_invoices.sql\n"
+        "kind: model\nversion: 1\nsql: fct_invoices.sql\nowner: finance-analytics\n"
     )
     (folder / "models/gold/fct_invoices.sql").write_text("SELECT * FROM finance.silver.invoices")
     return project, silver, gold

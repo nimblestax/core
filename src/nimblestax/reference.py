@@ -83,45 +83,52 @@ def _field_rows(schema: dict[str, Any], defs: dict[str, Any], prefix: str) -> It
     for name, field in schema["properties"].items():
         required = "yes" if name in schema.get("required", []) else "no"
         default = f"`{_value(field['default'])}`" if "default" in field else ""
-        cells = [f"`{prefix}{name}`", _type(field), required, default, field["description"]]
+        cells = [f"`{prefix}{name}`", _type(field, defs), required, default, field["description"]]
         yield "| " + " | ".join(cells) + " |\n"
-        inner, path = _inner(_without_null(field), defs, f"{prefix}{name}")
-        if inner:
+        for inner, path in _inner(_without_null(field), defs, f"{prefix}{name}"):
             yield from _field_rows(inner, defs, path)
 
 
-def _inner(field: dict[str, Any], defs: dict[str, Any], path: str) -> tuple[dict | None, str]:
-    """The object a field holds, itself or as list items or map values, and its fields' prefix."""
+def _inner(field: dict[str, Any], defs: dict[str, Any], path: str) -> list[tuple[dict, str]]:
+    """The objects a field holds, itself or as list items or map values, each with its fields'
+    prefix. A list of choices, such as Tests, holds one object per choice."""
     if "$ref" in field:
-        return _resolve(field, defs), f"{path}."
-    if "$ref" in field.get("items", {}):
-        return _resolve(field["items"], defs), f"{path}[]."
+        return [(_resolve(field, defs), f"{path}.")]
+    items = field.get("items", {})
+    if "$ref" in items:
+        return [(_resolve(items, defs), f"{path}[].")]
+    if "oneOf" in items:
+        return [(_resolve(choice, defs), f"{path}[].") for choice in items["oneOf"]]
     if "$ref" in (field.get("additionalProperties") or {}):
-        return _resolve(field["additionalProperties"], defs), f"{path}.<name>."
-    return None, path
+        return [(_resolve(field["additionalProperties"], defs), f"{path}.<name>.")]
+    return []
 
 
 def _resolve(field: dict[str, Any], defs: dict[str, Any]) -> dict[str, Any]:
     return defs[field["$ref"].removeprefix("#/$defs/")]
 
 
-def _type(field: dict[str, Any]) -> str:
+def _type(field: dict[str, Any], defs: dict[str, Any] | None = None) -> str:
     field = _without_null(field)
     if "const" in field:
         return f"`{field['const']}`"
     if "enum" in field:
         return "one of " + ", ".join(f"`{value}`" for value in field["enum"])
+    if "oneOf" in field and all("$ref" in choice for choice in field["oneOf"]):
+        # Objects with one field each, named by it, such as the Tests.
+        keys = [next(iter(_resolve(choice, defs or {})["properties"])) for choice in field["oneOf"]]
+        return "a mapping with one of " + ", ".join(f"`{key}`" for key in keys)
     if "oneOf" in field:  # Choices that each carry a description, such as the Naming Styles.
         return "one of " + ", ".join(f"`{choice['const']}`" for choice in field["oneOf"])
     if "$ref" in field:
         return "object"
     if field["type"] == "array":
-        return f"list of {_type(field['items'])}"
+        return f"list of {_type(field['items'], defs)}"
     if field["type"] == "object":
         values = field.get("additionalProperties") or next(
             iter(field.get("patternProperties", {}).values())
         )
-        return f"map of name to {_type(values)}"
+        return f"map of name to {_type(values, defs)}"
     return field["type"]
 
 
