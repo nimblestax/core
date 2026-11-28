@@ -61,9 +61,9 @@ RECOVERY_GUIDE = "[Recover from a failed refresh](../../guides/recover-from-a-fa
 COUNTRIES_CONFIG = "kind: seed\nversion: 1\nfile: countries.csv\ncolumns:\n  code: STRING\n"
 # `nimblestax.platform.yaml` as `nsx init` writes it, up to `domains`, for examples that add one.
 PLATFORM_HEAD = (
-    "kind: platform\nversion: 2\nname: shop\nenvironments:\n  dev:\n"
+    "kind: platform\nversion: 3\nname: shop\nenvironments:\n  dev:\n"
     "    host: https://your-workspace.cloud.databricks.com\n    role: development\n"
-    "naming:\n  style: domain-catalogs\n  layers:\n    models: [gold]\n"
+    "naming:\n  style: system-and-domain-catalogs\n  layers:\n    models: [gold]\n"
 )
 INVOICES = "domains/finance/sources/invoices.yaml"
 INVOICES_AS_JSON = (
@@ -429,7 +429,8 @@ RULES = {
     "NSX124": Rule(
         "naming-patterns-not-supported",
         checks="`nimblestax.platform.yaml` sets `catalog` and `schema` patterns that aren't a"
-        " Naming Style, or sets any patterns at version 2, which takes only `naming.style`.",
+        " Naming Style, or sets any patterns at version 2 or later, which take only"
+        " `naming.style`.",
         why="Each Naming Style is a layout Nimblestax tests end to end. A pattern of your own can"
         " go wrong in ways a style can't: dev and prod can write to one table, every Domain's"
         " silver can land in one schema, and two Domains joined with their Layers can give the"
@@ -438,14 +439,14 @@ RULES = {
         example=Example(
             {
                 "nimblestax.platform.yaml": PLATFORM_HEAD.replace(
-                    "  style: domain-catalogs\n",
+                    "  style: system-and-domain-catalogs\n",
                     '  catalog: "{env}"\n  schema: "{layer}"\n',
                 )
                 + "domains:\n  - sales\n"
             }
         ),
-        fix="Replace `catalog` and `schema` with `style`, set to `domain-catalogs`,"
-        " `layer-catalogs` or `environment-catalogs`, and set `version: 2`. For a version 1"
+        fix="Replace `catalog` and `schema` with `style`, set to `system-and-domain-catalogs`,"
+        " `layer-catalogs` or `environment-catalogs`, and set `version: 3`. For a version 1"
         " file, the diagnostic names the closest style. If the project is deployed, check"
         " where the style puts each table first, because a new style moves them. If none of"
         " the styles fits, see [When none of these fit]"
@@ -457,8 +458,8 @@ RULES = {
         " `[bronze, silver]`.",
         why="Every Source makes a bronze table and a silver table, and Nimblestax decides what each"
         " one does: Expectations, quarantine and exported silver. Another name would only"
-        " relabel them, so the source Layers are always bronze and silver, and version 2 has no"
-        " field for them.",
+        " relabel them, so the source Layers are always bronze and silver, and later versions"
+        " have no field for them.",
         example=Example(
             {
                 "nimblestax.platform.yaml": "kind: platform\nversion: 1\nname: shop\n"
@@ -468,7 +469,7 @@ RULES = {
                 "domains:\n  - sales\n"
             }
         ),
-        fix="Remove `naming.layers.sources`, and set `version: 2` with `naming.style`. To add a"
+        fix="Remove `naming.layers.sources`, and set `version: 3` with `naming.style`. To add a"
         " Layer, add it to `naming.layers.models`.",
     ),
     "NSX126": Rule(
@@ -585,10 +586,10 @@ RULES = {
         " Environment with that name would share its target.",
         example=Example(
             files={
-                "nimblestax.platform.yaml": "kind: platform\nversion: 2\nname: shop\n"
+                "nimblestax.platform.yaml": "kind: platform\nversion: 3\nname: shop\n"
                 "environments:\n  dev:\n    host: https://shop.cloud.databricks.com\n"
                 "    role: development\n  preview: {}\n"
-                "naming:\n  style: domain-catalogs\n  layers:\n    models: [gold]\n"
+                "naming:\n  style: system-and-domain-catalogs\n  layers:\n    models: [gold]\n"
                 "domains:\n  - sales\n"
             },
             command="nsx validate",
@@ -780,6 +781,21 @@ RULES = {
         fix="Correct `to` to the Logical Name of a table in the project, such as"
         " `shared.gold.dim_customers`.",
     ),
+    "NSX214": Rule(
+        "logical-name-in-another-naming-style",
+        checks="SQL reads a table by the Logical Name another Naming Style would give it,"
+        " not the project's.",
+        why="A Logical Name is the table's real name without the Environment, so its shape"
+        " follows the Naming Style: `silver.sales.orders` under `layer-catalogs`,"
+        " `sales.silver.orders` under `system-and-domain-catalogs` and `sales_silver.orders`"
+        " under `environment-catalogs`. A name in another style's shape is what you'd query in"
+        " another project, not this one. It's most often left behind when the style changes"
+        " before the first deploy.",
+        example=Example({FCT_ORDERS: "SELECT order_id, amount\nFROM silver.sales.orders\n"}),
+        fix="Write the table as the diagnostic says: its Logical Name in the project's Naming"
+        " Style.",
+        principle=CODE_NAMES_TABLES_LOGICALLY,
+    ),
     "NSX301": Rule(
         "missing-catalog",
         checks="With `--platform`, a catalog the project's tables need isn't in the"
@@ -819,10 +835,10 @@ RULES = {
         " there.",
         example=Example(
             files={
-                "nimblestax.platform.yaml": "kind: platform\nversion: 2\nname: shop\n"
+                "nimblestax.platform.yaml": "kind: platform\nversion: 3\nname: shop\n"
                 "environments:\n  dev:\n    host: https://shop.cloud.databricks.com\n"
                 "    role: development\ndevelopers: data-engineers\n"
-                "naming:\n  style: domain-catalogs\n  layers:\n    models: [gold]\n"
+                "naming:\n  style: system-and-domain-catalogs\n  layers:\n    models: [gold]\n"
                 "domains:\n  - sales\n"
             },
             command="nsx validate --platform",

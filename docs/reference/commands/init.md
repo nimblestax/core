@@ -21,7 +21,7 @@ $ nsx init [<folder>] [OPTIONS]
 | --- | --- | --- | --- |
 | `--ci` | `github` | `github` | CI provider to write files for. |
 | `--host` | text | `https://your-workspace.cloud.databricks.com` | Workspace URL. |
-| `--naming-style` | `domain-catalogs`, `layer-catalogs`, `environment-catalogs` |  | Where tables live. Asked at a terminal when left out; otherwise domain-catalogs. |
+| `--naming-style` | `system-and-domain-catalogs`, `layer-catalogs`, `environment-catalogs` |  | Where tables live. Asked at a terminal when left out; otherwise system-and-domain-catalogs. |
 | `--skills` | `all`, `none` | `all` | Nimblestax Skills to write for coding agents, into `.agents/skills/` and `.claude/skills/`. |
 | `--example` | text |  | Write an example project with its sample data, such as `kettle`, instead of a new one. It keeps the Naming Style it ships with. |
 | `--json` | Nothing |  | Print one JSON envelope. |

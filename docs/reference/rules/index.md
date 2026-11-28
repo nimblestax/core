@@ -34,7 +34,7 @@ A Rule's ID is `NSX` plus three digits, and its first digit is its series. Each 
 | [`NSX121`](nsx121.md) | `unlisted-domain-folder` | A folder under `domains/` isn't listed in `domains` in `nimblestax.platform.yaml`, in the same case, so nothing in it is validated or deployed. |
 | [`NSX122`](nsx122.md) | `dev-host-missing` | `nimblestax.platform.yaml` has no `host` on the Development Environment. In a version 1 file, which knows Environments by name, it has no `host` on `dev`. |
 | [`NSX123`](nsx123.md) | `two-default-environments` | More than one Environment in `nimblestax.platform.yaml` sets `default: true`. |
-| [`NSX124`](nsx124.md) | `naming-patterns-not-supported` | `nimblestax.platform.yaml` sets `catalog` and `schema` patterns that aren't a Naming Style, or sets any patterns at version 2, which takes only `naming.style`. |
+| [`NSX124`](nsx124.md) | `naming-patterns-not-supported` | `nimblestax.platform.yaml` sets `catalog` and `schema` patterns that aren't a Naming Style, or sets any patterns at version 2 or later, which take only `naming.style`. |
 | [`NSX125`](nsx125.md) | `source-layers-fixed` | A version 1 `nimblestax.platform.yaml` lists source Layers other than `[bronze, silver]`. |
 | [`NSX126`](nsx126.md) | `model-layer-named-like-a-source-layer` | A model Layer in `naming.layers.models` is called `bronze` or `silver`, in any case. |
 | [`NSX127`](nsx127.md) | `model-outside-a-layer` | A file sits directly in a Domain's `models/` folder, or in a first folder under it that isn't a model Layer in `naming.layers.models`. |
@@ -61,6 +61,7 @@ A Rule's ID is `NSX` plus three digits, and its first digit is its series. Each 
 | [`NSX211`](nsx211.md) | `stream-of-upsert-silver` | A Gold Model reads silver that has `keys` with `STREAM(...)`. |
 | [`NSX212`](nsx212.md) | `stream-of-materialized-view` | A Gold Model reads a Seed, or a Gold Model that doesn't stream, with `STREAM(...)`. |
 | [`NSX213`](nsx213.md) | `test-references-unknown-table` | A `references` Test names a table that isn't in the project. |
+| [`NSX214`](nsx214.md) | `logical-name-in-another-naming-style` | SQL reads a table by the Logical Name another Naming Style would give it, not the project's. |
 
 ## `NSX3xx` The workspace a project deploys to
 

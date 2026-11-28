@@ -62,7 +62,7 @@ def test_validate_prints_an_envelope_with_the_rule_id_and_exits_1(project: Path)
             ["init", "kettle"],
             {
                 "project": "kettle",
-                "naming_style": "domain-catalogs",
+                "naming_style": "system-and-domain-catalogs",
                 "catalogs": ["dev_sales"],
                 "schemas": ["dev_sales.bronze", "dev_sales.silver", "dev_sales.gold"],
                 "skills": [
@@ -298,6 +298,7 @@ REGISTERED_RULES = {
     "NSX211": "stream-of-upsert-silver",
     "NSX212": "stream-of-materialized-view",
     "NSX213": "test-references-unknown-table",
+    "NSX214": "logical-name-in-another-naming-style",
     "NSX301": "missing-catalog",
     "NSX302": "missing-schema",
     "NSX303": "developer-group-missing-grant",
@@ -435,7 +436,7 @@ INVALID_PROJECTS = {
         "    role: development\n",
         "    role: development\n    default: true\n  prod:\n    default: true\n",
     ),
-    "NSX124": replacing(PLATFORM, "  style: domain-catalogs\n", '  catalog: "{env}"\n'),
+    "NSX124": replacing(PLATFORM, "  style: system-and-domain-catalogs\n", '  catalog: "{env}"\n'),
     "NSX125": lambda project: (project / PLATFORM).write_text(
         "kind: platform\nversion: 1\nname: shop\nenvironments:\n  dev:\n"
         f"    host: {PLACEHOLDER_HOST}\n"
@@ -494,6 +495,9 @@ INVALID_PROJECTS = {
         f"{MODEL}.yaml",
         "sql: fct_orders.sql\n",
         "sql: fct_orders.sql\ntests:\n  - references: {column: id, to: sales.gold.nope}\n",
+    ),
+    "NSX214": lambda project: (
+        (project / f"{MODEL}.sql").write_text("SELECT * FROM silver.sales.orders")
     ),
 }
 

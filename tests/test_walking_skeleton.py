@@ -105,10 +105,11 @@ def test_a_source_lands_in_bronze_and_silver(project: Path):
     assert "STREAM(${catalog_sales_bronze}.${schema_sales_bronze}.orders)" in ingest
 
 
-def test_every_real_name_follows_the_platform_contracts_naming_style(project: Path):
-    contract = project / "nimblestax.platform.yaml"
-    contract.write_text(
-        contract.read_text().replace("style: domain-catalogs", "style: layer-catalogs")
+def test_every_real_name_follows_the_platform_contracts_naming_style(tmp_path: Path):
+    project = tmp_path
+    assert (
+        runner.invoke(app, ["init", str(project), "--naming-style", "layer-catalogs"]).exit_code
+        == 0
     )
 
     result = nsx(project, "compile", "--env", "dev")

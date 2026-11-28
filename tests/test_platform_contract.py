@@ -47,11 +47,11 @@ def failures(project: Path) -> list[dict]:
 @pytest.mark.parametrize(
     ("old", "new", "field"),
     [
-        ("version: 2\n", 'version: "2"\n', "version"),
-        ("version: 2\n", "version: true\n", "version"),
+        ("version: 3\n", 'version: "2"\n', "version"),
+        ("version: 3\n", "version: true\n", "version"),
         ("domains:\n", "colour: blue\ndomains:\n", "colour"),
         ("    models: [gold]\n", "    models: gold\n", "naming.layers.models"),
-        ("  style: domain-catalogs\n", "  style: 7\n", "naming.style"),
+        ("  style: system-and-domain-catalogs\n", "  style: 7\n", "naming.style"),
     ],
 )
 def test_a_bad_platform_contract_names_the_field_in_a_nsx106(
@@ -117,18 +117,18 @@ def test_a_repeated_domain_names_the_field(project: Path):
     assert "sales" in diagnostic["message"]
 
 
-class PlatformV3(BaseModel):
-    """A stand-in third version that renames `name` to `project`."""
+class PlatformV4(BaseModel):
+    """A stand-in next version that renames `name` to `project`."""
 
     model_config = platform.STRICT
 
     kind: Literal["platform"]
-    version: Literal[3]
+    version: Literal[4]
     project: str
 
 
-def upgrade_to_v3(old: platform.PlatformV2) -> PlatformV3:
-    return PlatformV3(kind="platform", version=3, project=old.name)
+def upgrade_to_v4(old: platform.PlatformV3) -> PlatformV4:
+    return PlatformV4(kind="platform", version=4, project=old.name)
 
 
 VERSION_1 = (
@@ -139,21 +139,31 @@ VERSION_1 = (
 )
 
 
-@pytest.mark.parametrize("written", [1, 2])
+VERSION_2 = (
+    "kind: platform\nversion: 2\nname: shop\nenvironments:\n  dev:\n"
+    "    host: https://dev.example.com\n    role: development\n"
+    "naming:\n  style: domain-catalogs\n  layers:\n    models: [gold]\ndomains:\n  - sales\n"
+)
+
+
+@pytest.mark.parametrize("written", [1, 2, 3])
 def test_a_contract_is_upgraded_through_every_step_to_the_latest_version(
     project: Path, monkeypatch, written: int
 ):
+    versions = {1: platform.PlatformV1, 2: platform.PlatformV2, 3: platform.PlatformV3}
+    monkeypatch.setattr(platform, "VERSIONS", {**versions, 4: PlatformV4})
     monkeypatch.setattr(
-        platform, "VERSIONS", {1: platform.PlatformV1, 2: platform.PlatformV2, 3: PlatformV3}
+        platform,
+        "UPGRADES",
+        {1: platform.upgrade_to_v2, 2: platform.upgrade_to_v3, 3: upgrade_to_v4},
     )
-    monkeypatch.setattr(platform, "UPGRADES", {1: platform.upgrade_to_v2, 2: upgrade_to_v3})
-    if written == 1:
-        (project / PLATFORM).write_text(VERSION_1)
+    if written < 3:
+        (project / PLATFORM).write_text({1: VERSION_1, 2: VERSION_2}[written])
     name = yaml.safe_load((project / PLATFORM).read_text())["name"]
 
-    upgraded = config.load(project, project / PLATFORM, platform.KIND, PlatformV3)
+    upgraded = config.load(project, project / PLATFORM, platform.KIND, PlatformV4)
 
-    assert upgraded == PlatformV3(kind="platform", version=3, project=name)
+    assert upgraded == PlatformV4(kind="platform", version=4, project=name)
 
 
 @pytest.mark.parametrize(

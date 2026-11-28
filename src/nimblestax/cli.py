@@ -104,7 +104,7 @@ class Skills(StrEnum):
 class NamingStyle(StrEnum):
     """Matches `names.NAMING_STYLES`, in the order `nsx init` offers them."""
 
-    domain_catalogs = "domain-catalogs"
+    system_and_domain_catalogs = "system-and-domain-catalogs"
     layer_catalogs = "layer-catalogs"
     environment_catalogs = "environment-catalogs"
 
@@ -272,7 +272,8 @@ def init(
         NamingStyle | None,
         typer.Option(
             "--naming-style",
-            help="Where tables live. Asked at a terminal when left out; otherwise domain-catalogs.",
+            help="Where tables live. Asked at a terminal when left out; otherwise"
+            " system-and-domain-catalogs.",
         ),
     ] = None,
     with_skills: Annotated[
@@ -311,7 +312,7 @@ def init(
         scaffold.write_example(folder, example, host, ci.value)
     else:
         style = naming_style or (
-            _ask_naming_style() if _at_a_terminal() else NamingStyle.domain_catalogs
+            _ask_naming_style() if _at_a_terminal() else NamingStyle.system_and_domain_catalogs
         )
         scaffold.write_project(folder, host, ci.value, style.value)
     installed = skills.install(folder) if with_skills == Skills.all else skills.Installed([], [])
@@ -373,11 +374,12 @@ def _ask_naming_style() -> NamingStyle:
     """Asked on stderr, so `--json` output on stdout stays one envelope."""
     typer.echo("Where should tables live? A silver orders table in prod would be:", err=True)
     for style in names.NAMING_STYLES:
-        typer.echo(f"  {style:<22}{names.example_table(style)}", err=True)
+        logical, real = names.example(style)
+        typer.echo(f"  {style:<28}{real:<28}written {logical}", err=True)
     typer.echo(ONE_WORKSPACE_OR_MANY, err=True)
     chosen = typer.prompt(
         "Naming Style",
-        default=NamingStyle.domain_catalogs.value,
+        default=NamingStyle.system_and_domain_catalogs.value,
         type=click.Choice([style.value for style in NamingStyle]),
         err=True,
     )
@@ -774,10 +776,7 @@ def test(
     """Run each Gold Model's Tests on a Preview Environment's tables, yours or a pull request's."""
     loaded = project.load(root)
     ran = model_tests.run(loaded, DatabricksCli(), pull_request, models or ())
-    runs = [
-        TestRun(model=f"{r.model.domain}.{r.model.layer}.{r.model.entity}", test=r.test)
-        for r in ran
-    ]
+    runs = [TestRun(model=r.model, test=r.test) for r in ran]
     if not runs:
         return Outcome("No gold model has Tests, so none ran.", Tested(tests=runs))
     # Each Test was listed on stderr as it ran, so the summary is one line.

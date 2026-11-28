@@ -22,7 +22,7 @@ from nimblestax.deploy.databricks import QueryFailed
 from nimblestax.diagnostics import USAGE_OR_ENVIRONMENT, Diagnostic, Failure, error, errors
 from nimblestax.kinds.model import Model, References, RowCount, Test, Unique
 from nimblestax.load.project import Project
-from nimblestax.names import LogicalName
+from nimblestax.names import Table
 
 # How many failing values a Test shows. Enough to start looking, few enough to read.
 EXAMPLES = 5
@@ -51,7 +51,7 @@ class Ran:
     """One Test on one Gold Model: why it failed, or why it couldn't run, or neither if it
     passed."""
 
-    model: LogicalName
+    model: str  # Its Logical Name.
     test: str
     file: str
     failure: str | None = None
@@ -93,9 +93,9 @@ def run(
 
     def run_one(model: Model, test: Test) -> Ran:
         # Said before the query, because a warehouse that's starting up can take minutes.
-        _say(f"  {'started':<12} {_dotted(model)}: {test.name}")
+        _say(f"  {'started':<12} {_dotted(project, model)}: {test.name}")
         found = _run(workspace, host, warehouse, project, model, test, schemas)
-        _say(f"  {_outcome(found):<12} {_dotted(model)}: {test.name}  ({finished.next()})")
+        _say(f"  {_outcome(found):<12} {_dotted(project, model)}: {test.name}  ({finished.next()})")
         return found
 
     with ThreadPoolExecutor(max_workers=at_once) as pool:
@@ -121,15 +121,16 @@ def select(project: Project, names: Sequence[str]) -> list[Model]:
     picked: set[str] = set()
     for name in names:
         wanted = name.lower()
-        found = [m for m in project.models if wanted in (_dotted(m), m.name.lower())]
+        found = [m for m in project.models if wanted in (_dotted(project, m), m.name.lower())]
         if len(found) != 1:
-            raise Failure([_unselected(name, found or list(project.models))], USAGE_OR_ENVIRONMENT)
-        picked.add(_dotted(found[0]))
-    return [model for model in project.models if _dotted(model) in picked]
+            candidates = found or list(project.models)
+            raise Failure([_unselected(project, name, candidates)], USAGE_OR_ENVIRONMENT)
+        picked.add(_dotted(project, found[0]))
+    return [model for model in project.models if _dotted(project, model) in picked]
 
 
-def _unselected(name: str, candidates: list[Model]) -> Diagnostic:
-    listed = ", ".join(f"`{_dotted(model)}`" for model in candidates)
+def _unselected(project: Project, name: str, candidates: list[Model]) -> Diagnostic:
+    listed = ", ".join(f"`{_dotted(project, model)}`" for model in candidates)
     if len(candidates) > 1 and all(model.name.lower() == name.lower() for model in candidates):
         # Two Domains, or two model Layers of one Domain, can each have a Model of one name.
         message = f"`{name}` names more than one Gold Model."
@@ -162,8 +163,10 @@ class Counter:
             return f"{self.done}/{self.total}"
 
 
-def _dotted(model: Model) -> str:
-    return f"{model.domain}.{model.layer}.{model.name}".lower()
+def _dotted(project: Project, model: Model) -> str:
+    """A Gold Model's Logical Name, in the project's Naming Style."""
+    table = Table(model.domain, model.layer, model.name)
+    return names.logical_name(project.platform.naming.style, table)
 
 
 def _outcome(ran: Ran) -> str:
@@ -224,21 +227,28 @@ def _run(
     test: Test,
     schemas: dict[str, tuple[str, str]],
 ) -> Ran:
-    logical = LogicalName(model.domain, model.layer, model.name)
+    table = Table(model.domain, model.layer, model.name)
+    logical = _dotted(project, model)
 
-    def in_preview(name: LogicalName) -> str:
+    def in_preview(name: Table) -> str:
         catalog, schema = schemas[f"{name.domain}_{name.layer}"]
         return f"{catalog}.{schema}.{name.entity}"
 
+    def referenced(written: str) -> str:
+        other = names.table_named(project.platform, tuple(written.split(".")))
+        # `rules.check` has already failed any Test that names a table not in the project.
+        assert other is not None
+        return in_preview(other)
+
     file = model.config_file.relative_to(project.root).as_posix()
     try:
-        [measured] = workspace.query(host, warehouse, _sql(test, in_preview(logical), in_preview))
+        [measured] = workspace.query(host, warehouse, _sql(test, in_preview(table), referenced))
     except QueryFailed as refused:
         return Ran(logical, test.name, file, error=str(refused))
     return Ran(logical, test.name, file, _failure(test, measured))
 
 
-def _sql(test: Test, table: str, in_preview: Callable[[LogicalName], str]) -> str:
+def _sql(test: Test, table: str, referenced: Callable[[str], str]) -> str:
     match test:
         case Unique(unique=columns):
             listed = ", ".join(columns)
@@ -252,7 +262,7 @@ def _sql(test: Test, table: str, in_preview: Callable[[LogicalName], str]) -> st
         case RowCount():
             return f"SELECT COUNT(*) FROM {table}"
         case References(references=found):
-            other = in_preview(LogicalName(*found.to.split(".")))
+            other = referenced(found.to)
             return (
                 f"SELECT COUNT(*), to_json(slice(collect_set(CAST(t.{found.column} AS STRING)),"
                 f" 1, {EXAMPLES}))\n"
@@ -291,7 +301,7 @@ def _rows(count: int) -> str:
 
 
 def _failed(ran: Ran) -> Diagnostic:
-    dotted = f"{ran.model.domain}.{ran.model.layer}.{ran.model.entity}"
+    dotted = ran.model
     if ran.error:
         return error(
             "NSX402",

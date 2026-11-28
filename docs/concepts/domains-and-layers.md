@@ -3,7 +3,7 @@ title: Domains and layers
 description: How a domain owns its tables, why bronze and silver are fixed, and how you name your own model layers.
 ---
 
-Every table in a Nimblestax project belongs to one domain and one layer. Together with the table's own name, they make its logical name, `<domain>.<layer>.<table>`, such as `sales.silver.orders`. Your SQL reads tables by logical name, and Nimblestax resolves each one to a real catalog and schema in every environment.
+Every table in a Nimblestax project belongs to one domain and one layer. Together with the table's own name, they make its logical name: its real name without the environment, such as `silver.sales.orders` under the `layer-catalogs` [naming style](naming.md). Your SQL reads tables by logical name, and Nimblestax resolves each one to a real catalog and schema in every environment.
 
 ## Domains
 
@@ -20,9 +20,9 @@ A domain can follow a business area, such as `sales`, or a source system, such a
 ```text
 domains/
   salesforce/
-    sources/accounts.yaml      # salesforce.bronze.accounts, salesforce.silver.accounts
+    sources/accounts.yaml      # bronze.salesforce.accounts, silver.salesforce.accounts
   sales/
-    models/gold/dim_account.yaml   # sales.gold.dim_account
+    models/gold/dim_account.yaml   # gold.sales.dim_account
 ```
 
 The `layer-catalogs` [naming style](naming.md) suits this layout, because each layer gets its own catalog and each domain a schema inside it: `prod_silver.salesforce.accounts` and `prod_gold.sales.dim_account`.
@@ -46,7 +46,7 @@ Gold models fill model layers, and you name them. A new project has one, `gold`:
 
 ```yaml
 naming:
-  style: domain-catalogs
+  style: layer-catalogs
   layers:
     models: [gold]
 ```
@@ -58,7 +58,7 @@ Add more to shape gold for the people who use it, such as `marts` or `serving`:
     models: [gold, marts]
 ```
 
-Each model layer is a schema in every domain, so `sales.marts.fct_orders` is a table in the `marts` schema next to `sales.gold`. A model layer adds a schema, not a pipeline: each domain still has one ingest pipeline and one gold pipeline, and the gold pipeline builds each table after the tables it reads.
+Each model layer holds every domain's tables, so under `layer-catalogs`, `marts.sales.fct_orders` is a table in each environment's marts catalog, such as `prod_marts`, beside `gold.sales.fct_orders` in `prod_gold`. A model layer adds catalogs or schemas, not a pipeline: each domain still has one ingest pipeline and one gold pipeline, and the gold pipeline builds each table after the tables it reads.
 
 Model layers have no order. A gold model can read any model layer in its own domain, in either direction, so a model in `marts` can read `gold`, and a model in `gold` can read `marts`. The order you list them in changes nothing. What Nimblestax refuses is a loop, where gold models read each other and none can be built first, even when the loop crosses layers. See [`NSX208`](../reference/rules/nsx208.md).
 
@@ -69,11 +69,11 @@ A model layer can't be called `bronze` or `silver`. See [`NSX126`](../reference/
 A gold model's layer is the first folder under its domain's `models/` folder. There is no `layer` field:
 
 ```text
-domains/sales/models/gold/fct_orders.yaml    # sales.gold.fct_orders
-domains/sales/models/marts/fct_orders.yaml   # sales.marts.fct_orders
+domains/sales/models/gold/fct_orders.yaml    # gold.sales.fct_orders
+domains/sales/models/marts/fct_orders.yaml   # marts.sales.fct_orders
 ```
 
-So a gold model's path reads as its logical name. The two files above are two tables, because they are in two layers.
+So a gold model's path names its domain, its layer and its table. The two files above are two tables, because they are in two layers.
 
 A file directly in `models/`, or in a first folder that isn't a model layer, fails with [`NSX127`](../reference/rules/nsx127.md), which lists your model layers.
 
@@ -82,8 +82,8 @@ A file directly in `models/`, or in a first folder that isn't a model layer, fai
 Folders below a model layer's folder, and any folders under `sources/` and `seeds/`, group files and nothing more. Nimblestax reads them at any depth, and they don't change a table's name, schema or anything else:
 
 ```text
-domains/sales/sources/erp/eu/orders.yaml          # sales.silver.orders
-domains/sales/models/gold/finance/revenue.yaml    # sales.gold.revenue
+domains/sales/sources/erp/eu/orders.yaml          # silver.sales.orders
+domains/sales/models/gold/finance/revenue.yaml    # gold.sales.revenue
 ```
 
 Because these folders carry no meaning, two files with one name in one domain's layer would be one table, and fail with [`NSX120`](../reference/rules/nsx120.md).

@@ -2,7 +2,7 @@
 
 import re
 from collections.abc import Callable
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic_core import PydanticCustomError
@@ -259,20 +259,39 @@ class PlatformV1(BaseModel):
 SOURCE_LAYERS = ("bronze", "silver")
 
 # The values of `names.NAMING_STYLES`, which holds each style's patterns.
-NamingStyle = Literal["domain-catalogs", "layer-catalogs", "environment-catalogs"]
+NamingStyle = Literal["system-and-domain-catalogs", "layer-catalogs", "environment-catalogs"]
+# Version 2's styles, which version 3 renamed where its key here says.
+NamingStyleV2 = Literal["domain-catalogs", "layer-catalogs", "environment-catalogs"]
+RENAMED_STYLES = {"domain-catalogs": "system-and-domain-catalogs"}
+STYLES_V2 = list(get_args(NamingStyleV2))
 
 
-def _style_choices(json_schema: dict[str, Any]) -> None:
+def _described(style: str) -> str:
+    """What a style does to one table, named by its version 2 or version 3 name."""
+    logical, real = names.example(RENAMED_STYLES.get(style, style))
+    return f"`{logical}` is `{real}` in prod"
+
+
+def _choices(styles: list[str]) -> Callable[[dict[str, Any]], None]:
     """Each style as its own choice with a description, so editors explain it as they complete."""
-    json_schema.pop("enum", None)
-    json_schema.pop("type", None)
-    json_schema["oneOf"] = [
-        {
-            "const": style,
-            "description": f"`sales.silver.orders` is `{names.example_table(style)}` in prod.",
-        }
-        for style in names.NAMING_STYLES
-    ]
+
+    def described(json_schema: dict[str, Any]) -> None:
+        json_schema.pop("enum", None)
+        json_schema.pop("type", None)
+        json_schema["oneOf"] = [
+            {
+                "const": style,
+                "description": f"The sales Domain's silver orders: {_described(style)}.",
+            }
+            for style in styles
+        ]
+
+    return described
+
+
+def _style_description(styles: list[str]) -> str:
+    listed = "; ".join(f"under `{style}`, {_described(style)}" for style in styles)
+    return f"Where tables live, and so how a Logical Name is written: {listed}."
 
 
 class ModelLayers(BaseModel):
@@ -309,30 +328,46 @@ class NamingV2(BaseModel):
 
     model_config = STRICT
 
-    style: NamingStyle = Field(
-        description="Where tables live. In prod, `sales.silver.orders` is "
-        + ", ".join(
-            f"`{names.example_table(style)}` under `{style}`" for style in names.NAMING_STYLES
-        )
-        + ".",
-        json_schema_extra=_style_choices,
+    style: NamingStyleV2 = Field(
+        description=_style_description(STYLES_V2), json_schema_extra=_choices(STYLES_V2)
     )
     layers: ModelLayers = Field(description="The model Layers.")
 
     @model_validator(mode="before")
     @classmethod
     def _no_patterns(cls, naming: Any) -> Any:
-        if isinstance(naming, dict) and ("catalog" in naming or "schema" in naming):
-            raise PydanticCustomError(
-                "NSX124",
-                "`naming` sets `catalog` and `schema` patterns, and version 2 takes only a"
-                " Naming Style.",
-                {
-                    "fix": "Replace `catalog` and `schema` with `style`, set to"
-                    f" {_style_list()}. Custom patterns aren't supported yet."
-                },
-            )
-        return naming
+        return _no_patterns(naming)
+
+
+class NamingV3(BaseModel):
+    """How Logical Names map to real catalogs and schemas."""
+
+    model_config = STRICT
+
+    style: NamingStyle = Field(
+        description=_style_description(list(names.NAMING_STYLES)),
+        json_schema_extra=_choices(list(names.NAMING_STYLES)),
+    )
+    layers: ModelLayers = Field(description="The model Layers.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _no_patterns(cls, naming: Any) -> Any:
+        return _no_patterns(naming)
+
+
+def _no_patterns(naming: Any) -> Any:
+    if isinstance(naming, dict) and ("catalog" in naming or "schema" in naming):
+        raise PydanticCustomError(
+            "NSX124",
+            "`naming` sets `catalog` and `schema` patterns, and since version 2 it takes only a"
+            " Naming Style.",
+            {
+                "fix": "Replace `catalog` and `schema` with `style`, set to"
+                f" {_style_list()}. Custom patterns aren't supported yet."
+            },
+        )
+    return naming
 
 
 def _style_list() -> str:
@@ -356,7 +391,10 @@ class TestSettings(BaseModel):
 
 
 class PlatformV2(BaseModel):
-    """The shared facts about a project's platform."""
+    """The shared facts about a project's platform, in version 2 of the platform Kind.
+
+    Read only to upgrade to version 3.
+    """
 
     model_config = ConfigDict(**STRICT, title="Nimblestax Platform Contract")
 
@@ -369,6 +407,99 @@ class PlatformV2(BaseModel):
         min_length=1, description="Settings per Environment."
     )
     naming: NamingV2 = Field(description="The Naming Style, and the model Layers.")
+    domains: list[Identifier] = Field(
+        json_schema_extra={"uniqueItems": True},
+        description="The Domains, one folder each under `domains/`.",
+    )
+    developers: str | None = Field(
+        default=None,
+        min_length=1,
+        description="The group whose members deploy their own Preview Environments into the"
+        " Development Environment's catalogs. `nsx validate --platform` checks it holds `USE"
+        " CATALOG`, `USE SCHEMA`, `CREATE SCHEMA` and `READ VOLUME` on them. Left out, nothing"
+        " is checked.",
+    )
+    tests: TestSettings = Field(
+        default_factory=TestSettings,
+        description="How `nsx test` runs Tests on a Preview Environment.",
+    )
+
+    @field_validator("environments")
+    @classmethod
+    def _roles_are_held(cls, environments: dict[str, Environment]) -> dict[str, Environment]:
+        return _checked(environments)
+
+    @field_validator("domains")
+    @classmethod
+    def _domains_are_unique(cls, domains: list[str]) -> list[str]:
+        return unique(domains, "Domain")
+
+
+def upgrade_to_v2(old: PlatformV1) -> PlatformV2:
+    """Patterns that match a Naming Style become that style. Anything else can't be kept. dev
+    and prod take the development and production roles."""
+    if tuple(old.naming.layers.sources) != SOURCE_LAYERS:
+        raise PydanticCustomError(
+            "NSX125",
+            "`naming.layers.sources` is {sources}, and the source Layers are always bronze"
+            " and silver.",
+            {
+                "sources": f"`[{', '.join(old.naming.layers.sources)}]`",
+                "fix": "Remove `naming.layers.sources`. To add a Layer, add it to"
+                " `naming.layers.models`.",
+            },
+        )
+    catalog, schema = old.naming.catalog_pattern, old.naming.schema_pattern
+    style = _v2_name(names.style_for(catalog, schema))
+    if style is None:
+        closest = names.closest_style(catalog, schema)
+        raise PydanticCustomError(
+            "NSX124",
+            "`naming` sets the patterns {patterns}, which aren't a Naming Style. The closest"
+            " is {closest}. Custom patterns aren't supported yet.",
+            {
+                "patterns": f"`{catalog}` / `{schema}`",
+                "closest": f"`{closest}`",
+                "fix": f"Set `version: 3`, and replace `catalog` and `schema` with `style:"
+                f" {closest}` or another Naming Style. If the project is deployed, check where"
+                " the style puts its tables first: a new style moves them.",
+            },
+        )
+    # Version 1 knew Environments by name, so dev and prod hold the roles those names meant.
+    roles = {"dev": DEVELOPMENT, "prod": PRODUCTION}
+    environments = {
+        env: {**settings.model_dump(exclude_defaults=True), "role": roles.get(env)}
+        for env, settings in old.environments.items()
+    }
+    return PlatformV2.model_validate(
+        {
+            **old.model_dump(include={"kind", "name", "domains"}),
+            "environments": environments,
+            "version": 2,
+            "naming": {"style": style, "layers": {"models": old.naming.layers.models}},
+        }
+    )
+
+
+def _v2_name[T: (str, str | None)](style: T) -> T:
+    """A style as version 2 names it."""
+    return next((old for old, new in RENAMED_STYLES.items() if new == style), style)
+
+
+class PlatformV3(BaseModel):
+    """The shared facts about a project's platform."""
+
+    model_config = ConfigDict(**STRICT, title="Nimblestax Platform Contract")
+
+    kind: Literal["platform"] = Field(description="The Kind of this file.")
+    version: Annotated[Literal[3], ExactInteger] = Field(
+        description="The schema version of this Kind."
+    )
+    name: str = Field(min_length=1, description="The project's name.")
+    environments: dict[str, Environment] = Field(
+        min_length=1, description="Settings per Environment."
+    )
+    naming: NamingV3 = Field(description="The Naming Style, and the model Layers.")
     domains: list[Identifier] = Field(
         json_schema_extra={"uniqueItems": True},
         description="The Domains, one folder each under `domains/`.",
@@ -432,56 +563,19 @@ class PlatformV2(BaseModel):
         return tuple(self.naming.layers.models)
 
 
-def upgrade_to_v2(old: PlatformV1) -> PlatformV2:
-    """Patterns that match a Naming Style become that style. Anything else can't be kept. dev
-    and prod take the development and production roles."""
-    if tuple(old.naming.layers.sources) != SOURCE_LAYERS:
-        raise PydanticCustomError(
-            "NSX125",
-            "`naming.layers.sources` is {sources}, and the source Layers are always bronze"
-            " and silver.",
-            {
-                "sources": f"`[{', '.join(old.naming.layers.sources)}]`",
-                "fix": "Remove `naming.layers.sources`. To add a Layer, add it to"
-                " `naming.layers.models`.",
-            },
-        )
-    catalog, schema = old.naming.catalog_pattern, old.naming.schema_pattern
-    style = names.style_for(catalog, schema)
-    if style is None:
-        closest = names.closest_style(catalog, schema)
-        raise PydanticCustomError(
-            "NSX124",
-            "`naming` sets the patterns {patterns}, which aren't a Naming Style. The closest"
-            " is {closest}. Custom patterns aren't supported yet.",
-            {
-                "patterns": f"`{catalog}` / `{schema}`",
-                "closest": f"`{closest}`",
-                "fix": f"Set `version: 2`, and replace `catalog` and `schema` with `style:"
-                f" {closest}` or another Naming Style. If the project is deployed, check where"
-                " the style puts its tables first: a new style moves them.",
-            },
-        )
-    # Version 1 knew Environments by name, so dev and prod hold the roles those names meant.
-    roles = {"dev": DEVELOPMENT, "prod": PRODUCTION}
-    environments = {
-        env: {**settings.model_dump(exclude_defaults=True), "role": roles.get(env)}
-        for env, settings in old.environments.items()
-    }
-    return PlatformV2.model_validate(
-        {
-            **old.model_dump(include={"kind", "name", "domains"}),
-            "environments": environments,
-            "version": 2,
-            "naming": {"style": style, "layers": {"models": old.naming.layers.models}},
-        }
-    )
+def upgrade_to_v3(old: PlatformV2) -> PlatformV3:
+    """`domain-catalogs` is renamed `system-and-domain-catalogs`, with the same real names and
+    Logical Names. Nothing else changes."""
+    upgraded = old.model_dump(exclude_defaults=True)
+    style = old.naming.style
+    upgraded["naming"]["style"] = RENAMED_STYLES.get(style, style)
+    return PlatformV3.model_validate({**upgraded, "version": 3})
 
 
-VERSIONS: dict[int, type[BaseModel]] = {1: PlatformV1, 2: PlatformV2}
-Platform = PlatformV2
+VERSIONS: dict[int, type[BaseModel]] = {1: PlatformV1, 2: PlatformV2, 3: PlatformV3}
+Platform = PlatformV3
 
 # `UPGRADES[n]` turns version n into version n + 1. A new version adds its model to `VERSIONS`,
 # points `Platform` at it, and adds one step here. A step that can't upgrade a file raises a
 # `PydanticCustomError` whose type is the Rule it breaks, with the fix in its context.
-UPGRADES: dict[int, Callable[[Any], BaseModel]] = {1: upgrade_to_v2}
+UPGRADES: dict[int, Callable[[Any], BaseModel]] = {1: upgrade_to_v2, 2: upgrade_to_v3}

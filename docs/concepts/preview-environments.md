@@ -30,7 +30,7 @@ A preview built from dev's landing files can differ from dev in two ways: rows d
 
 ## Your own schemas
 
-Each schema is the development environment's own, with `u_` and your user name in front, under every naming style. Under `layer-catalogs`, `sales.silver.orders` is `dev_silver.u_priya_sharma__sales.orders`. Your user name is cleaned into a schema name: `priya.sharma@acme.com` becomes `priya_sharma`. A name with other characters, such as `priya_sharma` or `o'neil`, gets a short code after it, so two people never share a prefix.
+Each schema is the development environment's own, with `u_` and your user name in front, under every naming style. Under `layer-catalogs`, `silver.sales.orders` is `dev_silver.u_priya_sharma__sales.orders`. Your user name is cleaned into a schema name: `priya.sharma@acme.com` becomes `priya_sharma`. A name with other characters, such as `priya_sharma` or `o'neil`, gets a short code after it, so two people never share a prefix.
 
 Your pipelines and Job carry the same prefix, such as `u_priya_sharma__kettle_sales_gold`. Your bundle's state sits in your own workspace folder, with your preview's [deployment manifest](deployment-manifests.md#a-previews-manifest). So two people's previews never share a schema, a pipeline or a deploy, and neither touches dev's.
 
@@ -57,7 +57,7 @@ Deployed pull request 42 to its Preview Environment, in:
 `nsx preview down --pr 42` removes it when the pull request closes.
 ```
 
-It builds every table, like a personal preview, and its schemas follow `pr<N>__<schema>` under every naming style: under `layer-catalogs`, `sales.silver.orders` is `dev_silver.pr42__sales.orders`. A `pr` prefix never starts like a `u_` one, so a pull request's preview never shares a schema with a person's or with dev's.
+It builds every table, like a personal preview, and its schemas follow `pr<N>__<schema>` under every naming style: under `layer-catalogs`, `silver.sales.orders` is `dev_silver.pr42__sales.orders`. A `pr` prefix never starts like a `u_` one, so a pull request's preview never shares a schema with a person's or with dev's.
 
 The prefix comes from `--pr` alone. Nimblestax reads no CI variables, so the workflow passes the number. Its bundle state sits under the deploying identity's own `.bundle/<project>/pull-requests/<N>` folder, never in a person's folder, and each push to the pull request deploys into the same preview. The workflow `nsx init --ci github` writes runs it after `nsx validate`, one push at a time.
 

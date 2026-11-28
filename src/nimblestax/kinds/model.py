@@ -67,8 +67,9 @@ class Reference(BaseModel):
 
     column: Identifier = Field(description="The column whose values must be in the other table.")
     to: str = Field(
-        pattern=r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*){2}$",
-        description="The other table's Logical Name, such as `shared.gold.dim_customers`.",
+        pattern=r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*){1,2}$",
+        description="The other table's Logical Name, in the project's Naming Style, such as"
+        " `shared.gold.dim_customers`.",
     )
     key: Identifier | None = Field(
         default=None, description="The other table's column. Left out, it has `column`'s name."

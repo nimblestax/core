@@ -10,9 +10,8 @@ from typer.testing import CliRunner
 
 from nimblestax import sql
 from nimblestax.cli import app
-from nimblestax.names import LogicalName
 
-ORDERS = LogicalName("sales", "silver", "orders")
+ORDERS = ("sales", "silver", "orders")  # As the SQL writes it.
 MODEL_SQL = "domains/sales/models/gold/fct_orders.sql"
 
 runner = CliRunner()
@@ -105,7 +104,7 @@ def test_a_name_that_is_neither_a_cte_nor_a_logical_name_is_unresolved(
     assert failure["rule"] == "NSX201"
     assert failure["line"] == 2
     assert f"`{name}`" in failure["message"]
-    assert "three-part Logical Name" in failure["fix"]
+    assert "a Logical Name, such as sales.silver.orders" in failure["fix"]
 
 
 def test_ordinary_sql_with_ctes_and_aliases_validates(project: Path):
@@ -214,7 +213,7 @@ def test_a_hint_is_never_a_read_and_compiles_unchanged(project: Path, hint: str)
     query = f"SELECT {hint} o.order_id\n{JOINED}"
     write_model(project, query)
 
-    assert sql.reads(query) == {ORDERS, LogicalName("sales", "gold", "dim_date")}
+    assert sql.reads(query) == {ORDERS, ("sales", "gold", "dim_date")}
     assert nsx(project, "validate", "--json").exit_code == 0
     compiled = nsx(project, "compile", "--env", "dev")
     assert compiled.exit_code == 0, compiled.output
@@ -366,19 +365,33 @@ def test_one_table_in_two_cases_is_one_read_and_one_typo_is_reported_once(projec
     assert failure["rule"] == "NSX201"
 
 
+# Each style's finance silver and gold schemas, as real names and as written in a Logical Name.
 NAMING_STYLES = {
-    "layer-catalogs": ("{env}_silver.finance", "{env}_gold.finance"),
-    "environment-catalogs": ("{env}.finance_silver", "{env}.finance_gold"),
+    "layer-catalogs": (
+        "{env}_silver.finance",
+        "{env}_gold.finance",
+        "silver.finance",
+        "gold.finance",
+    ),
+    "environment-catalogs": (
+        "{env}.finance_silver",
+        "{env}.finance_gold",
+        "finance_silver",
+        "finance_gold",
+    ),
 }
 
 
 @pytest.fixture(params=NAMING_STYLES, ids=list(NAMING_STYLES))
-def finance(project: Path, request) -> tuple[Path, str, str]:
+def finance(tmp_path: Path, request) -> tuple[Path, str, str, str, str]:
     """A `finance` Domain holding the Source `invoices` and the Model `fct_invoices`."""
-    silver, gold = NAMING_STYLES[request.param]
+    project = tmp_path
+    init = runner.invoke(app, ["init", str(project), "--naming-style", request.param])
+    assert init.exit_code == 0, init.output
+    silver, gold, logical_silver, logical_gold = NAMING_STYLES[request.param]
     add_environment(project, "prod")
     platform = project / "nimblestax.platform.yaml"
-    text = platform.read_text().replace("style: domain-catalogs", f"style: {request.param}")
+    text = platform.read_text()
     platform.write_text(text.replace("  - sales\n", "  - sales\n  - finance\n"))
     folder = project / "domains/finance"
     (folder / "sources").mkdir(parents=True)
@@ -389,23 +402,18 @@ def finance(project: Path, request) -> tuple[Path, str, str]:
     (folder / "models/gold/fct_invoices.yaml").write_text(
         "kind: model\nversion: 1\nsql: fct_invoices.sql\nowner: finance-analytics\n"
     )
-    (folder / "models/gold/fct_invoices.sql").write_text("SELECT * FROM finance.silver.invoices")
-    return project, silver, gold
+    (folder / "models/gold/fct_invoices.sql").write_text(f"SELECT * FROM {logical_silver}.invoices")
+    return project, silver, gold, logical_silver, logical_gold
 
 
 @pytest.mark.parametrize("env", ["dev", "prod"])
-@pytest.mark.parametrize(
-    ("layer", "entity", "logical"),
-    [
-        ("silver", "invoices", "finance.silver.invoices"),
-        ("gold", "fct_invoices", "finance.gold.fct_invoices"),
-    ],
-)
-def test_a_real_name_of_a_table_in_the_project_points_to_its_logical_name(
-    finance: tuple[Path, str, str], env: str, layer: str, entity: str, logical: str
+@pytest.mark.parametrize(("layer", "entity"), [("silver", "invoices"), ("gold", "fct_invoices")])
+def test_a_real_name_of_a_table_in_the_project_points_to_its_logical_name_in_the_style(
+    finance: tuple[Path, str, str, str, str], env: str, layer: str, entity: str
 ):
-    project, silver, gold = finance
+    project, silver, gold, logical_silver, logical_gold = finance
     real = f"{(silver if layer == 'silver' else gold).format(env=env)}.{entity}"
+    logical = f"{logical_silver if layer == 'silver' else logical_gold}.{entity}"
     write_model(project, f"SELECT * FROM {real}")
 
     [failure] = failures(project)
@@ -416,9 +424,9 @@ def test_a_real_name_of_a_table_in_the_project_points_to_its_logical_name(
 
 @pytest.mark.parametrize("env", ["dev", "prod"])
 def test_a_real_name_of_a_table_not_in_the_project_does_not_suggest_it(
-    finance: tuple[Path, str, str], env: str
+    finance: tuple[Path, str, str, str, str], env: str
 ):
-    project, silver, _ = finance
+    project, silver, _, logical_silver, _ = finance
     real = f"{silver.format(env=env)}.nope"
     write_model(project, f"SELECT * FROM {real}")
 
@@ -426,10 +434,11 @@ def test_a_real_name_of_a_table_not_in_the_project_does_not_suggest_it(
 
     assert failure["rule"] == "NSX205"
     assert failure["message"] == (
-        f"{real} is a real table name, and no table called finance.silver.nope is in this project."
+        f"{real} is a real table name, and no table called {logical_silver}.nope is in this"
+        " project."
     )
     assert failure["fix"] == (
-        "Declare a Source, Seed or Gold Model called finance.silver.nope, or correct the name."
+        f"Declare a Source, Seed or Gold Model called {logical_silver}.nope, or correct the name."
     )
 
 

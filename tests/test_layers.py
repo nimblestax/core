@@ -235,7 +235,7 @@ def test_a_layer_catalogs_project_with_a_domain_per_source_system_validates_and_
         "format: json\nsilver:\n  export: true\n"
     )
     write_model(
-        tmp_path, "sales/models/gold/dim_account.yaml", "SELECT * FROM salesforce.silver.accounts"
+        tmp_path, "sales/models/gold/dim_account.yaml", "SELECT * FROM silver.salesforce.accounts"
     )
 
     passes(tmp_path)

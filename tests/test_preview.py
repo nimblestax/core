@@ -217,7 +217,7 @@ def test_a_previews_generated_files_match_every_other_targets_byte_for_byte(
 @pytest.mark.parametrize(
     "style, schema",
     [
-        ("domain-catalogs", "dev_sales.u_bijil__silver"),
+        ("system-and-domain-catalogs", "dev_sales.u_bijil__silver"),
         ("layer-catalogs", "dev_silver.u_bijil__sales"),
         ("environment-catalogs", "dev.u_bijil__sales_silver"),
     ],
@@ -560,7 +560,7 @@ def test_a_pull_request_preview_deploys_every_table_to_its_own_schemas_under_cis
 @pytest.mark.parametrize(
     "style, schema",
     [
-        ("domain-catalogs", "dev_sales.pr42__silver"),
+        ("system-and-domain-catalogs", "dev_sales.pr42__silver"),
         ("layer-catalogs", "dev_silver.pr42__sales"),
         ("environment-catalogs", "dev.pr42__sales_silver"),
     ],
@@ -576,7 +576,9 @@ def test_pull_request_preview_schemas_follow_the_naming_style(
     assert schema in json.loads(result.stdout)["result"]["schemas"]
 
 
-@pytest.mark.parametrize("style", ["domain-catalogs", "layer-catalogs", "environment-catalogs"])
+@pytest.mark.parametrize(
+    "style", ["system-and-domain-catalogs", "layer-catalogs", "environment-catalogs"]
+)
 def test_a_pull_request_preview_shares_no_schema_pipeline_or_folder_with_a_person_or_dev(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, style: str
 ):

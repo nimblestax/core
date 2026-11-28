@@ -285,7 +285,7 @@ def test_the_platform_page_lists_each_naming_style_as_a_choice(tmp_path: Path):
     rows = field_rows((tmp_path / "reference/kinds/platform.md").read_text())
     [style] = [row for row in rows if row[0] == "`naming.style`"]
     assert style[1:3] == [
-        "one of `domain-catalogs`, `layer-catalogs`, `environment-catalogs`",
+        "one of `system-and-domain-catalogs`, `layer-catalogs`, `environment-catalogs`",
         "yes",
     ]
 
