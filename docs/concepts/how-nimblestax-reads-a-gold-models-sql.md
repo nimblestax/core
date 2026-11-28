@@ -7,19 +7,20 @@ A gold model is a SQL file. Nimblestax parses it to find every table it reads, a
 
 ## Reads are logical names, found by parsing
 
-A gold model reads tables by their logical name, three parts: the domain, the layer and the table.
+A gold model reads tables by their logical name: the table's real name without the environment, so its shape follows the [naming style](naming.md). Under `layer-catalogs`, it has three parts: the layer, the domain and the table.
 
 ```sql
 SELECT o.order_id, o.amount, c.vat_rate
-FROM sales.silver.orders AS o
-JOIN sales.silver.countries AS c
+FROM silver.sales.orders AS o
+JOIN silver.sales.countries AS c
   ON o.country = c.code
 ```
 
-Nimblestax parses the query and takes each table it reads, in `FROM`, `JOIN` and subqueries. A CTE's name isn't a table, so it isn't a read. Nimblestax never guesses. Anything that might read a table but isn't a three-part logical name fails `nsx validate`:
+Nimblestax parses the query and takes each table it reads, in `FROM`, `JOIN` and subqueries. A CTE's name isn't a table, so it isn't a read. Nimblestax never guesses. Anything that might read a table but isn't a logical name fails `nsx validate`:
 
-- a one- or two-part name that isn't a CTE fails with [`NSX201`](../reference/rules/nsx201.md)
-- a real table name, such as `prod_sales.silver.orders`, fails with [`NSX205`](../reference/rules/nsx205.md)
+- a name that isn't a CTE or a table in the project fails with [`NSX201`](../reference/rules/nsx201.md)
+- a real table name, such as `prod_silver.sales.orders`, fails with [`NSX205`](../reference/rules/nsx205.md)
+- a logical name in another naming style's shape, such as `sales.silver.orders` under `layer-catalogs`, fails with [`NSX214`](../reference/rules/nsx214.md)
 - a name built as the query runs, such as `IDENTIFIER(...)`, fails with [`NSX204`](../reference/rules/nsx204.md)
 - a read of files, such as `read_files(...)`, fails with [`NSX206`](../reference/rules/nsx206.md)
 - SQL Nimblestax can't parse fails with [`NSX203`](../reference/rules/nsx203.md)
@@ -32,18 +33,18 @@ A gold model that reads any table with `STREAM(...)` compiles to a streaming tab
 
 ```sql
 SELECT order_id, amount
-FROM STREAM(sales.silver.orders)
+FROM STREAM(silver.sales.orders)
 ```
 
 ```sql
-CREATE OR REFRESH STREAMING TABLE dev_sales.gold.fct_orders AS
+CREATE OR REFRESH STREAMING TABLE dev_gold.sales.fct_orders AS
 SELECT order_id, amount
-FROM STREAM(dev_sales.silver.orders)
+FROM STREAM(dev_silver.sales.orders)
 ```
 
 A streaming table reads only the rows added since its last update. A materialized view reads its whole query each time, and Databricks refreshes it incrementally where it can.
 
-A query that joins a stream to a table read without `STREAM(...)`, such as `STREAM(sales.silver.orders) JOIN sales.silver.countries`, is a streaming table too. Each new order is joined to the countries as they are when it arrives.
+A query that joins a stream to a table read without `STREAM(...)`, such as `STREAM(silver.sales.orders) JOIN silver.sales.countries`, is a streaming table too. Each new order is joined to the countries as they are when it arrives.
 
 ## What a stream may read
 
@@ -62,5 +63,5 @@ Each of these would otherwise fail in the pipeline, after a deploy. `nsx validat
 Databricks accepts some SQL that Nimblestax can't parse yet. Each of these fails `nsx validate`, so none reaches a deploy.
 
 - **`WATERMARK ... DELAY OF`** fails with [`NSX203`](../reference/rules/nsx203.md). A gold model can't do a watermarked streaming aggregation for now.
-- **`STREAM x` without brackets**, as in `JOIN STREAM sales.silver.orders`, fails with [`NSX203`](../reference/rules/nsx203.md). Write `STREAM(sales.silver.orders)`.
+- **`STREAM x` without brackets**, as in `JOIN STREAM silver.sales.orders`, fails with [`NSX203`](../reference/rules/nsx203.md). Write `STREAM(silver.sales.orders)`.
 - **`window(...)` as a table function** fails with [`NSX206`](../reference/rules/nsx206.md), because Nimblestax can't see what it reads.

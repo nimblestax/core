@@ -42,12 +42,12 @@ def test_layer_catalogs_writes_its_style_and_resolves_a_logical_name(tmp_path: P
 
 
 STYLES = [
-    ("domain-catalogs", "prod_sales.silver.orders"),
+    ("system-and-domain-catalogs", "prod_sales.silver.orders"),
     ("layer-catalogs", "prod_silver.sales.orders"),
     ("environment-catalogs", "prod.sales_silver.orders"),
 ]
 PATHS = {
-    "domain-catalogs": "/Volumes/{env}_sales/bronze/landing/orders",
+    "system-and-domain-catalogs": "/Volumes/{env}_sales/bronze/landing/orders",
     "layer-catalogs": "/Volumes/{env}_bronze/sales/landing/orders",
     "environment-catalogs": "/Volumes/{env}/sales_bronze/landing/orders",
 }
@@ -91,7 +91,7 @@ def test_the_starter_gold_models_sit_in_their_layer_folder(tmp_path: Path):
     ("style", "catalogs", "schemas"),
     [
         (
-            "domain-catalogs",
+            "system-and-domain-catalogs",
             ["dev_sales"],
             ["dev_sales.bronze", "dev_sales.silver", "dev_sales.gold"],
         ),
@@ -133,14 +133,14 @@ def naming(project: Path) -> str:
     return yaml.safe_load((project / PLATFORM).read_text())["naming"]["style"]
 
 
-def test_at_a_terminal_pressing_enter_takes_domain_catalogs(tmp_path: Path, monkeypatch):
+def test_at_a_terminal_pressing_enter_takes_system_and_domain_catalogs(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(cli, "_at_a_terminal", lambda: True)
 
     result = init(tmp_path, input="\n")
 
     assert result.exit_code == 0, result.output
-    assert naming(tmp_path) == "domain-catalogs"
-    for style in ("domain-catalogs", "layer-catalogs", "environment-catalogs"):
+    assert naming(tmp_path) == "system-and-domain-catalogs"
+    for style in ("system-and-domain-catalogs", "layer-catalogs", "environment-catalogs"):
         assert style in result.output
     assert "prod_silver.sales.orders" in result.output
     assert result.output.count("one workspace for all Environments") == 2  # Prompt and output.
@@ -165,9 +165,11 @@ def test_with_the_flag_init_asks_nothing(tmp_path: Path, monkeypatch):
     assert naming(tmp_path) == "layer-catalogs"
 
 
-def test_away_from_a_terminal_init_asks_nothing_and_takes_domain_catalogs(tmp_path: Path):
+def test_away_from_a_terminal_init_asks_nothing_and_takes_system_and_domain_catalogs(
+    tmp_path: Path,
+):
     result = init(tmp_path)
 
     assert result.exit_code == 0, result.output
     assert "Naming Style [" not in result.output
-    assert naming(tmp_path) == "domain-catalogs"
+    assert naming(tmp_path) == "system-and-domain-catalogs"

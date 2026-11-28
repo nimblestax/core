@@ -216,7 +216,8 @@ def _upstream(project: Project, pipelines: set[str]) -> dict[str, list[str]]:
             continue  # `nsx validate` reports it, and `nsx deploy` refuses it.
         reader = f"{model.domain}_gold"
         needed = upstream.setdefault(reader, [])
-        for read in sorted(reads, key=str):
+        tables = (names.table_named(project.platform, written) for written in reads)
+        for read in sorted((table for table in tables if table), key=str):
             group = "ingest" if read.layer in source_layers else "gold"
             pipeline = f"{domains.get(read.domain, read.domain)}_{group}"
             if pipeline in pipelines and pipeline != reader and pipeline not in needed:

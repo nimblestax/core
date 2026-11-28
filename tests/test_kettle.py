@@ -10,9 +10,9 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from nimblestax import cli
+from nimblestax import cli, names, sql
 from nimblestax.cli import app
-from nimblestax.names import NAMING_STYLES
+from nimblestax.names import NAMING_STYLES, Table
 
 runner = CliRunner()
 KETTLE = Path(str(files("nimblestax") / "examples" / "kettle"))
@@ -22,11 +22,30 @@ def init_kettle(folder: Path, *args: str):
     return runner.invoke(app, ["init", "--example", "kettle", str(folder), *args])
 
 
+SHIPPED_STYLE = "system-and-domain-catalogs"
+
+
+def restyle(project: Path, style: str) -> None:
+    """Moves a project from Kettle's style to `style`, rewriting each Logical Name to match."""
+
+    def renamed(written: tuple[str, ...]) -> str | None:
+        return names.logical_name(style, Table(*written)) if len(written) == 3 else None
+
+    contract = project / "nimblestax.platform.yaml"
+    contract.write_text(contract.read_text().replace(f"style: {SHIPPED_STYLE}", f"style: {style}"))
+    for query in project.glob("domains/*/models/*/*.sql"):
+        query.write_text(sql.rewrite(query.read_text(), renamed))
+    for config in project.glob("domains/*/models/*/*.yaml"):
+        text = config.read_text()
+        for to in set(line.split("to: ")[1] for line in text.splitlines() if "to: " in line):
+            text = text.replace(f"to: {to}", f"to: {renamed(tuple(to.split('.')))}")
+        config.write_text(text)
+
+
 @pytest.mark.parametrize("style", NAMING_STYLES)
 def test_kettle_is_a_valid_project_under_every_naming_style(tmp_path: Path, style: str):
     assert init_kettle(tmp_path).exit_code == 0
-    contract = tmp_path / "nimblestax.platform.yaml"
-    contract.write_text(contract.read_text().replace("style: domain-catalogs", f"style: {style}"))
+    restyle(tmp_path, style)
 
     validated = runner.invoke(app, ["validate", "--project", str(tmp_path), "--json"])
 

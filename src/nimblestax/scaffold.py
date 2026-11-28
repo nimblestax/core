@@ -16,7 +16,7 @@ PLACEHOLDER_HOST = "https://your-workspace.cloud.databricks.com"
 SCHEMA_FOLDER = Path(".nimblestax/schemas")
 
 # Templates that take values. The rest are copied as they are.
-FILLED_IN = {"nimblestax.platform.yaml", "orders.yaml"}
+FILLED_IN = {"nimblestax.platform.yaml", "orders.yaml", "fct_orders.sql"}
 
 
 def refuse_existing_project(root: Path) -> None:
@@ -50,9 +50,20 @@ def write_project(root: Path, host: str, ci: str, naming_style: str) -> None:
     path = f"/Volumes/{catalog}/{schema}/landing/orders"
     # Every style, so the comment stays true whichever one the file names.
     styles = "\n".join(
-        f"  #   {style:<22}{names.example_table(style)}" for style in names.NAMING_STYLES
+        f"  #   {style:<28}{real:<28}written {logical}"
+        for style in names.NAMING_STYLES
+        for logical, real in [names.example(style)]
     )
-    values = {"host": host, "name": name, "style": naming_style, "styles": styles, "path": path}
+    # The starter Gold Model reads the starter Source's silver by its Logical Name in this style.
+    orders = names.logical_name(naming_style, names.Table("sales", "silver", "orders"))
+    values = {
+        "host": host,
+        "name": name,
+        "style": naming_style,
+        "styles": styles,
+        "path": path,
+        "orders": orders,
+    }
     templates = files("nimblestax") / "templates"
     _copy(templates / "project", root, lambda name, text: _filled_in(name, text, values))
     _copy(templates / "ci" / ci, root)

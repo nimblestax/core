@@ -22,5 +22,5 @@ A file with `kind: model`, at version 1. `nsx schema model` prints the same fiel
 | `tests[].row_count.max` | integer | no | `null` | The most rows the table may have. Left out, no limit. |
 | `tests[].references` | object | yes |  | The column, and the table and key it refers to. |
 | `tests[].references.column` | string | yes |  | The column whose values must be in the other table. |
-| `tests[].references.to` | string | yes |  | The other table's Logical Name, such as `shared.gold.dim_customers`. |
+| `tests[].references.to` | string | yes |  | The other table's Logical Name, in the project's Naming Style, such as `shared.gold.dim_customers`. |
 | `tests[].references.key` | string | no | `null` | The other table's column. Left out, it has `column`'s name. |

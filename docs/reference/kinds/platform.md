@@ -5,14 +5,14 @@ generated: true
 nimblestax_version: 0.1.0
 ---
 
-A file with `kind: platform`, at version 2. `nsx schema platform` prints the same fields from the Nimblestax you installed.
+A file with `kind: platform`, at version 3. `nsx schema platform` prints the same fields from the Nimblestax you installed.
 
 ## Fields
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
 | `kind` | `platform` | yes |  | The Kind of this file. |
-| `version` | `2` | yes |  | The schema version of this Kind. |
+| `version` | `3` | yes |  | The schema version of this Kind. |
 | `name` | string | yes |  | The project's name. |
 | `environments` | map of name to object | yes |  | Settings per Environment. |
 | `environments.<name>.host` | string | no | `null` | Workspace URL. Required on the Development Environment; every other Environment uses its host unless it sets its own. |
@@ -24,7 +24,7 @@ A file with `kind: platform`, at version 2. `nsx schema platform` prints the sam
 | `environments.<name>.schedule.paused` | boolean | no | `null` | Whether the schedule is paused. Left out, it runs in the Production Environment and is paused everywhere else. |
 | `environments.<name>.warehouse` | string | no | `null` | The ID of the SQL warehouse `nsx test` runs Tests on. Read from the Development Environment, whose workspace holds every Preview Environment. Left out, Nimblestax uses the only warehouse you can see there. |
 | `naming` | object | yes |  | The Naming Style, and the model Layers. |
-| `naming.style` | one of `domain-catalogs`, `layer-catalogs`, `environment-catalogs` | yes |  | Where tables live. In prod, `sales.silver.orders` is `prod_sales.silver.orders` under `domain-catalogs`, `prod_silver.sales.orders` under `layer-catalogs`, `prod.sales_silver.orders` under `environment-catalogs`. |
+| `naming.style` | one of `system-and-domain-catalogs`, `layer-catalogs`, `environment-catalogs` | yes |  | Where tables live, and so how a Logical Name is written: under `system-and-domain-catalogs`, `sales.silver.orders` is `prod_sales.silver.orders` in prod; under `layer-catalogs`, `silver.sales.orders` is `prod_silver.sales.orders` in prod; under `environment-catalogs`, `sales_silver.orders` is `prod.sales_silver.orders` in prod. |
 | `naming.layers` | object | yes |  | The model Layers. |
 | `naming.layers.models` | list of string | yes |  | One or more model Layers, in any order. Each is a folder under `models/`. |
 | `domains` | list of string | yes |  | The Domains, one folder each under `domains/`. |

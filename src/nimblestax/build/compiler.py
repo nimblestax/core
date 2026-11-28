@@ -9,7 +9,7 @@ from nimblestax.build import bundle
 from nimblestax.build import package as build_package
 from nimblestax.kinds import model, seed, source
 from nimblestax.load.project import Project
-from nimblestax.names import LogicalName
+from nimblestax.names import Table
 
 BUILD_FOLDER = "build"
 STREAMING_TABLE = "streaming_table"
@@ -21,26 +21,32 @@ def generated_files(project: Project) -> dict[Path, str]:
     files: dict[Path, str] = {}
     bronze_layer, silver_layer = project.platform.source_layers
     for item in project.sources:
-        bronze = names.placeholders(LogicalName(item.domain, bronze_layer, item.name))
-        silver = names.placeholders(LogicalName(item.domain, silver_layer, item.name))
-        quarantine = names.placeholders(LogicalName(item.domain, silver_layer, item.quarantine))
+        bronze = names.placeholders(Table(item.domain, bronze_layer, item.name))
+        silver = names.placeholders(Table(item.domain, silver_layer, item.name))
+        quarantine = names.placeholders(Table(item.domain, silver_layer, item.quarantine))
         path = Path("src") / item.domain / "ingest" / f"{item.name}.sql"
         files[path] = source.generate(
             item, names.path_placeholder(item), bronze, silver, quarantine
         )
     for item in project.seeds:
-        target = names.placeholders(LogicalName(item.domain, silver_layer, item.name))
+        target = names.placeholders(Table(item.domain, silver_layer, item.name))
         files[Path("src") / item.domain / "ingest" / f"{item.name}.sql"] = seed.generate(
             item, target
         )
     for item in project.models:
         layer = item.layer
-        target = names.placeholders(LogicalName(item.domain, layer, item.name))
+        target = names.placeholders(Table(item.domain, layer, item.name))
         path = Path("src") / item.domain / "gold" / f"{item.name}.sql"
         query = sql.escape_placeholders(item.query)
-        rewritten = sql.rewrite(query, names.placeholders)
+        rewritten = sql.rewrite(query, lambda written: _placeholders(project, written))
         files[path] = model.generate(item, target, rewritten, sql.streams(item.query))
     return files
+
+
+def _placeholders(project: Project, written: sql.Written) -> str | None:
+    """A Logical Name as generated code refers to it, or None for a name that isn't one."""
+    table = names.table_named(project.platform, written)
+    return names.placeholders(table) if table else None
 
 
 def tables(project: Project) -> dict[str, dict]:
@@ -54,8 +60,8 @@ def tables(project: Project) -> dict[str, dict]:
     files = generated_files(project)
     bronze_layer, silver_layer = project.platform.source_layers
 
-    def add(name: LogicalName, kind: str, path: Path, made_of: str, **more: dict) -> None:
-        found[f"{name.domain}.{name.layer}.{name.entity}"] = {
+    def add(name: Table, kind: str, path: Path, made_of: str, **more: dict) -> None:
+        found[names.logical_name(project.platform.naming.style, name)] = {
             "type": kind,
             "file": path.as_posix(),
             "definition": _checksum(f"{kind}\n{made_of}"),
@@ -64,20 +70,20 @@ def tables(project: Project) -> dict[str, dict]:
 
     for item in project.sources:
         path = Path("src") / item.domain / "ingest" / f"{item.name}.sql"
-        add(LogicalName(item.domain, bronze_layer, item.name), STREAMING_TABLE, path, files[path])
-        add(LogicalName(item.domain, silver_layer, item.name), STREAMING_TABLE, path, files[path])
+        add(Table(item.domain, bronze_layer, item.name), STREAMING_TABLE, path, files[path])
+        add(Table(item.domain, silver_layer, item.name), STREAMING_TABLE, path, files[path])
         if item.silver.quarantining:
-            quarantine = LogicalName(item.domain, silver_layer, item.quarantine)
+            quarantine = Table(item.domain, silver_layer, item.quarantine)
             add(quarantine, STREAMING_TABLE, path, files[path])
     for item in project.seeds:
         path = Path("src") / item.domain / "ingest" / f"{item.name}.sql"
-        add(LogicalName(item.domain, silver_layer, item.name), MATERIALIZED_VIEW, path, files[path])
+        add(Table(item.domain, silver_layer, item.name), MATERIALIZED_VIEW, path, files[path])
     for item in project.models:
         path = Path("src") / item.domain / "gold" / f"{item.name}.sql"
         kind = STREAMING_TABLE if sql.streams(item.query) else MATERIALIZED_VIEW
         named = sql.columns(item.query)
         more = {"columns": {c: _checksum(made) for c, made in named.items()}} if named else {}
-        name = LogicalName(item.domain, item.layer, item.name)
+        name = Table(item.domain, item.layer, item.name)
         add(name, kind, path, sql.without_columns(item.query), **more)
     return dict(sorted(found.items()))
 

@@ -1,32 +1,32 @@
 ---
 title: Naming
-description: The three naming styles, how a logical name becomes a real table name in each environment, and what to do when none of them fits.
+description: The three naming styles, how a logical name is a real table name without the environment, and what to do when none of them fits.
 ---
 
-Your SQL reads tables by logical name, such as `sales.silver.orders`: the domain, the layer and the table. Nimblestax turns each logical name into a real catalog, schema and table for the environment it deploys to. The naming style in `nimblestax.platform.yaml` says how.
+Your SQL reads a table by its logical name: its real name without the environment. Nimblestax adds the environment for each place it deploys. The naming style in `nimblestax.platform.yaml` says where tables live, and so how you write their names.
 
 ```yaml
 naming:
-  style: domain-catalogs
+  style: layer-catalogs
   layers:
     models: [gold]
 ```
 
-`nsx init` asks for the style and writes it here. Pressing Enter takes `domain-catalogs`.
+`nsx init` asks for the style and writes it here. Pressing Enter takes `system-and-domain-catalogs`.
 
 ## The three styles
 
-Each style puts the environment first, then the domain and the layer, and joins the parts with `_`.
+Each style is named for what its catalogs are. The sales domain's silver `orders`:
 
-| Style | Catalog | Schema | `sales.silver.orders` in prod |
+| Style | Each catalog is | Real name in prod | Logical name |
 | --- | --- | --- | --- |
-| `domain-catalogs` | `<env>_<domain>` | `<layer>` | `prod_sales.silver.orders` |
-| `layer-catalogs` | `<env>_<layer>` | `<domain>` | `prod_silver.sales.orders` |
-| `environment-catalogs` | `<env>` | `<domain>_<layer>` | `prod.sales_silver.orders` |
+| `layer-catalogs` | a layer | `prod_silver.sales.orders` | `silver.sales.orders` |
+| `system-and-domain-catalogs` | a domain | `prod_sales.silver.orders` | `sales.silver.orders` |
+| `environment-catalogs` | an environment | `prod.sales_silver.orders` | `sales_silver.orders` |
 
-- `domain-catalogs` gives each domain its own catalog in each environment. A domain's owners get one catalog to grant on, and its layers are schemas inside it. This is the style the Nimblestax Way recommends.
-- `layer-catalogs` gives each layer its own catalog, with a schema per domain. It suits teams that grant by layer, and teams whose domains are source systems.
-- `environment-catalogs` puts each environment in one catalog, with a schema for each domain and layer. It suits a workspace where you can create only a few catalogs.
+- `layer-catalogs` gives each layer its own catalog in each environment, with a schema per domain. It's the medallion layout most Databricks teams know, and the number of catalogs grows only with layers, never with domains. One grant on the bronze catalog keeps raw data from analysts.
+- `system-and-domain-catalogs` gives each domain its own catalog in each environment, with a schema per layer. It suits teams that fence each domain at catalog level, with its own owner, workspace binding or storage. Nimblestax 0.1.0 called it `domain-catalogs`, and a `nimblestax.platform.yaml` that says `domain-catalogs` is read as `system-and-domain-catalogs`.
+- `environment-catalogs` puts each environment in one catalog, with a schema for each domain and layer. It has the fewest catalogs, so it suits a workspace where you can create only a few.
 
 Every style works with one workspace for all environments, or one workspace per environment. The environment is always part of the catalog name, so environments sharing a workspace never share a table.
 
@@ -34,15 +34,21 @@ On one workspace, the production environment is kept apart from the others by it
 
 ## How a logical name resolves
 
-The SQL is the same in every environment. Only the real name changes. With `domain-catalogs`, `sales.silver.orders` is:
+A logical name is what Catalog Explorer shows, minus the `prod_` or `dev_`. Under `environment-catalogs`, the whole catalog is the environment, so a logical name has two parts.
+
+The SQL is the same in every environment. Only the real name changes. With `layer-catalogs`, `silver.sales.orders` is:
 
 | Environment | Real table |
 | --- | --- |
-| `dev` | `dev_sales.silver.orders` |
-| `test` | `test_sales.silver.orders` |
-| `prod` | `prod_sales.silver.orders` |
+| `dev` | `dev_silver.sales.orders` |
+| `test` | `test_silver.sales.orders` |
+| `prod` | `prod_silver.sales.orders` |
 
-Each domain and layer pair gets its own catalog and schema. A gold model in the same project, `sales.gold.fct_orders`, is `prod_sales.gold.fct_orders` in prod, and a finance source, `finance.silver.invoices`, is `prod_finance.silver.invoices`.
+Each domain and layer pair gets its own catalog and schema. A gold model in the same project, `gold.sales.fct_orders`, is `prod_gold.sales.fct_orders` in prod, and a finance source, `silver.finance.invoices`, is `prod_silver.finance.invoices`.
+
+A name written in another style's shape fails `nsx validate` with [`NSX214`](../reference/rules/nsx214.md), which gives the name to write. So does a real name, with [`NSX205`](../reference/rules/nsx205.md).
+
+Under `layer-catalogs` and `system-and-domain-catalogs`, no catalog is called `silver` or `sales`, so a logical name run by hand in a notebook fails rather than reading data. Under `environment-catalogs`, `sales_silver.orders` run by hand reads the session's current catalog.
 
 `nsx init` prints every catalog and schema your project needs, so you can create them before your first deploy. Nimblestax never creates them. `nsx compile --env prod` shows the real names in the code it generates.
 
@@ -58,14 +64,14 @@ It checks one environment at a time, because each CI job signs in as one environ
 
 ## Changing the style
 
-Before your first deploy, change the style by editing that one word.
+Before your first deploy, change the style by editing that one word. Every logical name in your SQL changes shape with it, and `nsx validate` names the new spelling of each one.
 
 > **Warning**
 > After a deploy, a new style gives every table a new catalog or schema. The next deploy creates empty tables there and leaves the old ones where they are. Nimblestax doesn't stop this yet, so don't change the style of a deployed project.
 
 ## When none of these fit
 
-You name the environments, the domains and the model layers yourself, so most conventions fit one of the styles. A prefix is part of the name you choose. If your catalogs start with `acme_prod`, name the environment `acme_prod`, and `domain-catalogs` gives `acme_prod_sales.silver.orders`. For now, the environment you develop in must still be called `dev`.
+You name the environments, the domains and the model layers yourself, so most conventions fit one of the styles. A prefix is part of the name you choose. If your catalogs start with `acme_prod`, name the environment `acme_prod`, and `layer-catalogs` gives `acme_prod_silver.sales.orders`. For now, the environment you develop in must still be called `dev`.
 
 Nimblestax fixes two things:
 

@@ -10,7 +10,7 @@ metadata:
 
 1. Run `nsx schema model` for the fields the installed Nimblestax accepts. Take field names and values from its output, not from memory.
 2. Write `domains/<domain>/models/<layer>/<name>.sql` as one query, and `<name>.yaml` beside it with `kind: model` and the `version` the schema names.
-3. Read tables by their Logical Names, such as `sales.silver.orders`, never by a real table name.
+3. Read tables by their Logical Names, never by a real table name. A Logical Name is the real name without the Environment, so its shape follows `naming.style` in `nimblestax.platform.yaml`: `silver.sales.orders` under `layer-catalogs`, `sales.silver.orders` under `system-and-domain-catalogs` and `sales_silver.orders` under `environment-catalogs`.
 4. If the project's other models name an `owner`, set it to the team that answers for this table. If you don't know which team, ask; don't invent one. Otherwise leave `owner` out.
 5. Add `tests` for what must hold of the whole table: at least `unique` on the columns that identify a row, and `references` for each column that points at another table's key.
 6. Run `nsx validate --json`. For each diagnostic, apply its `fix`, then run it again until it reports none.

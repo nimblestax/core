@@ -1,18 +1,19 @@
-# yaml-language-server: $schema=.nimblestax/schemas/platform.v2.json
+# yaml-language-server: $schema=.nimblestax/schemas/platform.v3.json
 kind: platform
-version: 2
+version: 3
 name: kettle
 environments:
   dev:
     host: https://your-workspace.cloud.databricks.com
     role: development
 naming:
-  # Where tables live. Under each Naming Style, sales.silver.orders in prod is:
-  #   domain-catalogs       prod_sales.silver.orders
-  #   layer-catalogs        prod_silver.sales.orders
-  #   environment-catalogs  prod.sales_silver.orders
+  # Where tables live, and how you write a table's name. The sales Domain's silver orders
+  # in prod, under each Naming Style:
+  #   system-and-domain-catalogs  prod_sales.silver.orders    written sales.silver.orders
+  #   layer-catalogs              prod_silver.sales.orders    written silver.sales.orders
+  #   environment-catalogs        prod.sales_silver.orders    written sales_silver.orders
   # How names resolve in each Environment: https://nimblestax.com/docs/concepts/naming
-  style: domain-catalogs
+  style: system-and-domain-catalogs
   layers:
     models: [gold]
 domains:

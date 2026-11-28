@@ -11,7 +11,6 @@ from sqlglot.optimizer.scope import traverse_scope
 from sqlglot.tokens import Token, TokenType
 
 from nimblestax.conditions import DIALECT
-from nimblestax.names import LogicalName
 
 # Table-valued functions that read nothing, so a Gold Model may call them. Any other fails closed.
 GENERATORS = {
@@ -33,6 +32,11 @@ PLACEHOLDER_START = re.compile(r"(\\*)\$\{")
 ESCAPED_DOLLAR = "\\u0024"
 
 
+# A table's name as the SQL writes it, in lowercase parts: `("silver", "sales", "orders")`.
+# Which table it is depends on the Naming Style, so `names.table_named` reads it.
+Written = tuple[str, ...]
+
+
 @dataclass(frozen=True)
 class Found:
     """Some text in the SQL and the line it starts on."""
@@ -43,10 +47,10 @@ class Found:
 
 @dataclass(frozen=True)
 class Query:
-    """What a Gold Model's SQL reads, and what in it can't be read as a Logical Name."""
+    """What a Gold Model's SQL reads, and what in it can't be read as a table's name."""
 
-    reads: dict[LogicalName, Found] = field(default_factory=dict)  # Each as first written.
-    streams: dict[LogicalName, Found] = field(default_factory=dict)  # Read with `STREAM(...)`.
+    reads: dict[Written, Found] = field(default_factory=dict)  # Each as first written.
+    streams: dict[Written, Found] = field(default_factory=dict)  # Read with `STREAM(...)`.
     unqualified: list[Found] = field(default_factory=list)
     computed: list[Found] = field(default_factory=list)
     file_reads: list[Found] = field(default_factory=list)
@@ -85,16 +89,19 @@ def parse(sql: str) -> Query:
             continue
         parts = streamed or table.parts
         written = Found(".".join(part.name for part in parts), line)
-        if len(parts) == 3:
-            name = LogicalName(*(part.name for part in parts))
+        if _is_file_path(parts):
+            file_format, path = parts
+            query.file_reads.append(Found(f"{file_format.name}.`{path.name}`", line))
+        elif not all(isinstance(part, exp.Identifier) for part in parts):
+            continue
+        elif len(parts) == 1:
+            query.unqualified.append(written)
+        else:
+            # Two parts or three: which shape names a table is the Naming Style's to say.
+            name = tuple(part.name.lower() for part in parts)
             query.reads.setdefault(name, written)
             if streamed:
                 query.streams.setdefault(name, written)
-        elif _is_file_path(parts):
-            file_format, path = parts
-            query.file_reads.append(Found(f"{file_format.name}.`{path.name}`", line))
-        elif all(isinstance(part, exp.Identifier) for part in parts):
-            query.unqualified.append(written)
     return query
 
 
@@ -115,8 +122,8 @@ def _is_file_path(parts: list[exp.Expression]) -> bool:
     return file_format.name.lower() in FILE_FORMATS and bool(path.args.get("quoted"))
 
 
-def reads(sql: str) -> set[LogicalName]:
-    """Every three-part table the query reads. CTE names and aliases have no three-part name."""
+def reads(sql: str) -> set[Written]:
+    """Every qualified table name the query reads. CTE names and aliases are never qualified."""
     return set(parse(sql).reads)
 
 
@@ -187,37 +194,46 @@ def _stream_parts(table: exp.Table) -> list[exp.Expression]:
     return []
 
 
-def rewrite(sql: str, replacement: Callable[[LogicalName], str]) -> str:
-    """Replaces each three-part name in place, so comments and layout survive."""
+def rewrite(sql: str, replacement: Callable[[Written], str | None]) -> str:
+    """Replaces each table name the query reads in place, so comments and layout survive.
+
+    `replacement` gives a name's new text, or None to leave it as written. A name followed by
+    more parts, as in `silver.sales.orders.amount`, is a column of that table.
+    """
     known = reads(sql)
     pieces: list[str] = []
     position = 0
-    for start, end, name in _three_part_names(sql):
-        if name in known:
-            pieces += [sql[position:start], replacement(name)]
-            position = end
+    for start, parts in _dotted_names(sql):
+        for length in (3, 2):
+            name = tuple(token.text.lower() for token in parts[:length])
+            new = replacement(name) if len(name) == length and name in known else None
+            if new is not None:
+                pieces += [sql[position:start], new]
+                position = parts[length - 1].end + 1 + (start - parts[0].start)
+                break
     return "".join(pieces) + sql[position:]
 
 
-def _three_part_names(sql: str, offset: int = 0) -> list[tuple[int, int, LogicalName]]:
-    """Each `a.b.c`, with where it starts and ends. Comments and strings aren't names."""
+def _dotted_names(sql: str, offset: int = 0) -> list[tuple[int, list[Token]]]:
+    """Each `a.b` or longer, with where it starts and its parts. Comments and strings aren't
+    names, and a name is found only from its first part."""
     tokens = sqlglot.tokenize(sql, dialect=DIALECT)
     found = []
-    for index, token in enumerate(tokens):
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
         if token.token_type == TokenType.HINT:
             # A whole `/*+ ... */` is one token, so the names inside it are found in its body.
             body = token.start + len("/*+")
-            found += _three_part_names(sql[body : token.end - 1], offset + body)
-        window = tokens[index : index + 5]
-        if len(window) == 5 and _is_three_part(window):
-            first, _, second, _, third = window
-            name = LogicalName(first.text, second.text, third.text)
-            found.append((offset + first.start, offset + third.end + 1, name))
+            found += _dotted_names(sql[body : token.end - 1], offset + body)
+        parts = [token]
+        while index + 2 < len(tokens) and tokens[index + 1].token_type == TokenType.DOT:
+            index += 2
+            parts.append(tokens[index])
+        if len(parts) > 1:
+            found.append((offset + parts[0].start, parts))
+        index += 1
     return found
-
-
-def _is_three_part(window: list[Token]) -> bool:
-    return window[1].token_type == TokenType.DOT and window[3].token_type == TokenType.DOT
 
 
 def escape_placeholders(sql: str) -> str:

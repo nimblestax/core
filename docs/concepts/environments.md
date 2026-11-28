@@ -40,7 +40,7 @@ Two environments with one role fail with [`NSX131`](../reference/rules/nsx131.md
 
 ## Names
 
-An environment's name is what appears in its catalogs, so under `domain-catalogs`, `sales.silver.orders` is `prd_sales.silver.orders` in an environment called `prd`. Nimblestax writes catalog names into SQL unquoted, so a name must be letters, digits and underscores, and can't start with a digit. A name like `prd-1` fails with [`NSX132`](../reference/rules/nsx132.md). See [Naming](naming.md) for how each style builds the catalog.
+An environment's name is what appears in its catalogs, so under `layer-catalogs`, `silver.sales.orders` is `prd_silver.sales.orders` in an environment called `prd`. Nimblestax writes catalog names into SQL unquoted, so a name must be letters, digits and underscores, and can't start with a digit. A name like `prd-1` fails with [`NSX132`](../reference/rules/nsx132.md). See [Naming](naming.md) for how each style builds the catalog.
 
 ## Stages
 

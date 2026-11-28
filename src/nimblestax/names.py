@@ -20,7 +20,7 @@ PLACEHOLDER = re.compile(r"\$\{(\w+)\}")
 
 # Each Naming Style's catalog and schema patterns, in the order `nsx init` offers them.
 NAMING_STYLES = {
-    "domain-catalogs": ("{env}_{domain}", "{layer}"),
+    "system-and-domain-catalogs": ("{env}_{domain}", "{layer}"),
     "layer-catalogs": ("{env}_{layer}", "{domain}"),
     "environment-catalogs": ("{env}", "{domain}_{layer}"),
 }
@@ -33,10 +33,11 @@ def real_names(style: str, env: str, domain: str, layer: str) -> tuple[str, str]
     return catalog.format(**parts), schema.format(**parts)
 
 
-def example_table(style: str) -> str:
-    """What `sales.silver.orders` is in prod under a Naming Style."""
-    catalog, schema = real_names(style, "prod", "sales", "silver")
-    return f"{catalog}.{schema}.orders"
+def example(style: str) -> tuple[str, str]:
+    """The sales Domain's silver `orders` under a Naming Style: its Logical Name, and its real
+    name in prod."""
+    orders = Table("sales", "silver", "orders")
+    return logical_name(style, orders), real_name(style, "prod", orders)
 
 
 def style_for(catalog: str, schema: str) -> str | None:
@@ -62,8 +63,12 @@ def closest_style(catalog: str, schema: str) -> str:
 
 
 @dataclass(frozen=True)
-class LogicalName:
-    """Always lowercase, because Databricks matches names whatever their case."""
+class Table:
+    """A table, by its Domain, its Layer and its own name. Always lowercase, because Databricks
+    matches names whatever their case.
+
+    How it's written, its Logical Name, depends on the Naming Style: see `logical_name`.
+    """
 
     domain: str
     layer: str
@@ -74,7 +79,36 @@ class LogicalName:
             object.__setattr__(self, part, getattr(self, part).lower())
 
 
-def placeholders(name: LogicalName) -> str:
+def real_name(style: str, env: str, table: Table, prefix: str = "") -> str:
+    """The table's name in one Environment, or with `prefix` on its schema, in a Preview
+    Environment."""
+    catalog, schema = real_names(style, env, table.domain, table.layer)
+    return f"{catalog}.{prefix}{schema}.{table.entity}"
+
+
+def logical_name(style: str, table: Table) -> str:
+    """The table's real name without the Environment: `silver.sales.orders` under
+    `layer-catalogs`, and `sales_silver.orders` under `environment-catalogs`."""
+    return ".".join((*_logical_prefix(style, table.domain, table.layer), table.entity))
+
+
+def logical_name_parts(style: str) -> int:
+    """How many parts a Logical Name has under a style: three, or two under
+    `environment-catalogs`."""
+    return len(_logical_prefix(style, "domain", "layer")) + 1
+
+
+def _logical_prefix(style: str, domain: str, layer: str) -> tuple[str, ...]:
+    """The parts before the table's own name, built from the style's real-name patterns with
+    the Environment taken out, so a Logical Name and a real name can't drift apart."""
+    catalog, schema = NAMING_STYLES[style]
+    parts = {"domain": domain, "layer": layer}
+    without_env = catalog.removeprefix("{env}").removeprefix("_")
+    kept = (without_env, schema) if without_env else (schema,)
+    return tuple(pattern.format(**parts).lower() for pattern in kept)
+
+
+def placeholders(name: Table) -> str:
     """The table as generated code refers to it, the same in every Environment."""
     catalog = catalog_setting(name.domain, name.layer)
     schema = schema_setting(name.domain, name.layer)
@@ -182,17 +216,42 @@ def platform_objects(
     return list(catalogs), list(schemas)
 
 
-def logical_name_for(project: Project, real: LogicalName) -> LogicalName | None:
-    """The Logical Name behind a real table name in any Environment, if it is one."""
+def table_named(
+    platform: Platform, written: tuple[str, ...], style: str | None = None
+) -> Table | None:
+    """The table a Logical Name in `style`, by default the project's, names, if it names one.
+
+    The Domain and Layer are found by lookup, not by splitting the name: every pairing's
+    Logical Name is built the one way, and each pairing's real names are unique.
+    """
+    style = style or platform.naming.style
+    *prefix, entity = (part.lower() for part in written)
+    for domain in platform.domains:
+        for layer in (*platform.source_layers, *platform.model_layers):
+            if tuple(prefix) == _logical_prefix(style, domain, layer):
+                return Table(domain, layer, entity)
+    return None
+
+
+def other_styles(platform: Platform) -> list[str]:
+    """Every Naming Style but the project's, in the order `nsx init` offers them."""
+    return [style for style in NAMING_STYLES if style != platform.naming.style]
+
+
+def table_for_real_name(project: Project, written: tuple[str, ...]) -> Table | None:
+    """The table behind a real table name in any Environment, if it is one."""
+    if len(written) != 3:
+        return None
     platform = project.platform
+    catalog_written, schema_written, entity = (part.lower() for part in written)
     for env in platform.hosts:
         values = settings(project, env)
         for domain in platform.domains:
             for layer in (*platform.source_layers, *platform.model_layers):
                 catalog = values[catalog_setting(domain, layer)].lower()
                 schema = values[schema_setting(domain, layer)].lower()
-                if (real.domain, real.layer) == (catalog, schema):
-                    return LogicalName(domain, layer, real.entity)
+                if (catalog_written, schema_written) == (catalog, schema):
+                    return Table(domain, layer, entity)
     return None
 
 

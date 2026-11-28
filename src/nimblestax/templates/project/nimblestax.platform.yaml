@@ -1,13 +1,14 @@
-# yaml-language-server: $schema=.nimblestax/schemas/platform.v2.json
+# yaml-language-server: $schema=.nimblestax/schemas/platform.v3.json
 kind: platform
-version: 2
+version: 3
 name: {name}
 environments:
   dev:
     host: {host}
     role: development
 naming:
-  # Where tables live. Under each Naming Style, sales.silver.orders in prod is:
+  # Where tables live, and how you write a table's name. The sales Domain's silver orders
+  # in prod, under each Naming Style:
 {styles}
   # How names resolve in each Environment: https://nimblestax.com/docs/concepts/naming
   style: {style}
