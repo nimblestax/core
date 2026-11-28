@@ -303,6 +303,9 @@ REGISTERED_RULES = {
     "NSX303": "developer-group-missing-grant",
     "NSX401": "test-failed",
     "NSX402": "test-could-not-run",
+    "NSX501": "change-not-classed",
+    "NSX502": "no-deployment-manifest",
+    "NSX503": "manifest-without-definitions",
     "NSX901": "usage-error",
     "NSX902": "unknown-environment",
     "NSX903": "databricks-cli-missing",
@@ -525,6 +528,7 @@ def test_a_new_rule_must_be_tested_here():
     previews = {"NSX920", "NSX921", "NSX922"}
     build_packages = {"NSX917", "NSX918", "NSX919"}
     model_tests = {"NSX401", "NSX402", "NSX923", "NSX924", "NSX925", "NSX926"}
+    plans = {"NSX501", "NSX502", "NSX503"}
 
     assert set(RULES) == (
         set(INVALID_PROJECTS)
@@ -537,6 +541,7 @@ def test_a_new_rule_must_be_tested_here():
         | previews
         | build_packages
         | model_tests
+        | plans
     )
 
 

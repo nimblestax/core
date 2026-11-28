@@ -25,6 +25,8 @@ With `--json`, it prints the [envelope](../json-output.md) with `schema` set to 
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `tests` | array of object | Every Test that ran, and passed. When one fails, `nsx test` exits 1 with a diagnostic for each failure instead. |
+| `tests[].model` | string | The Gold Model's Logical Name, such as `sales.gold.fct_orders`. |
+| `tests[].test` | string | The Test, as `nsx test` names it, such as `unique(order_id)`. |
 
 ## Exit codes
 

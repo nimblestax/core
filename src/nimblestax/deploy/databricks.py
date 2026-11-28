@@ -59,6 +59,10 @@ class Workspace(Protocol):
         """Write a file in `target`'s workspace, making its folder and replacing what's there."""
         ...
 
+    def read_file(self, package: Path, target: str, path: str) -> str | None:
+        """A workspace file's content, or None if there's no file there."""
+        ...
+
     def list_folder(self, package: Path, target: str, folder: str) -> list[str]:
         """The paths of the files in a folder of `target`'s workspace."""
         ...
@@ -140,6 +144,21 @@ class DatabricksCli:
             )
         finally:
             os.unlink(local.name)
+
+    def read_file(self, package: Path, target: str, path: str) -> str | None:
+        with tempfile.TemporaryDirectory() as folder:
+            local = Path(folder) / "exported"
+            _, failure = self._try(
+                package,
+                *("workspace", "export", path, "--format", "AUTO", "--file", str(local)),
+                *("--target", target),
+            )
+            if not failure:
+                return local.read_text()
+        if "doesn't exist" in failure or "RESOURCE_DOES_NOT_EXIST" in failure:
+            return None
+        sys.stderr.write(failure)
+        raise WorkspaceError(f"databricks workspace export {path} failed.")
 
     def list_folder(self, package: Path, target: str, folder: str) -> list[str]:
         listed = self._json(package, "workspace", "list", folder, "--target", target, "-o", "json")

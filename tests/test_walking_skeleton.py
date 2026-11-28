@@ -39,6 +39,9 @@ class FakeWorkspace:
     def write_file(self, package: Path, target: str, path: str, content: str) -> None:
         pass
 
+    def read_file(self, package: Path, target: str, path: str) -> str | None:
+        return None
+
     def list_folder(self, package: Path, target: str, folder: str) -> list[str]:
         return []
 

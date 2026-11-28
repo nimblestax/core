@@ -77,6 +77,14 @@ A Rule's ID is `NSX` plus three digits, and its first digit is its series. Each 
 | [`NSX401`](nsx401.md) | `test-failed` | A Gold Model's Test failed on its table in your Preview Environment. |
 | [`NSX402`](nsx402.md) | `test-could-not-run` | The SQL warehouse refused a Test's query. |
 
+## `NSX5xx` The Plan
+
+| Rule | Name | What it checks |
+| --- | --- | --- |
+| [`NSX501`](nsx501.md) | `change-not-classed` | A table changed in a way this version of the Plan doesn't class yet. |
+| [`NSX502`](nsx502.md) | `no-deployment-manifest` | The Environment the Plan compares with has no Deployment Manifest. |
+| [`NSX503`](nsx503.md) | `manifest-without-definitions` | The Environment's Deployment Manifest was written by a Nimblestax that didn't record how each table is made. |
+
 ## `NSX9xx` The command line and running against Databricks
 
 | Rule | Name | What it checks |

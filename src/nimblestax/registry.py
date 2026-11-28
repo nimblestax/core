@@ -78,6 +78,7 @@ SERIES = {
     "NSX2": "SQL and reads between tables",
     "NSX3": "The workspace a project deploys to",
     "NSX4": "Tests on a Preview Environment's tables",
+    "NSX5": "The Plan",
     "NSX9": "The command line and running against Databricks",
 }
 
@@ -862,6 +863,59 @@ RULES = {
             when="`fct_orders` has no column `order_no`.",
         ),
         fix="Correct the Test so it matches the model's table, such as a column's name.",
+    ),
+    "NSX501": Rule(
+        "change-not-classed",
+        checks="A table changed in a way this version of the Plan doesn't class yet.",
+        why="The Plan classes each change as safe, refresh or destructive, so a reviewer knows"
+        " where to look. This version classes new tables and new columns. Any other change to a"
+        " table, such as a changed filter, a changed or dropped column, a changed Source or a"
+        " removed table, is reported with this warning instead of a guessed class, so it is"
+        " never shown as safe when it might not be. The Plan still succeeds.",
+        example=Example(
+            {FCT_ORDERS: "SELECT order_id, amount\nFROM sales.silver.orders\nWHERE amount > 0\n"},
+            command="nsx plan --env dev",
+            when="dev's Deployment Manifest holds `fct_orders` as `nsx init` writes it.",
+        ),
+        fix="Read the change to the table's config or SQL in the pull request before you approve"
+        " it.",
+        principle=EVERY_CHANGE_IS_REVIEWED,
+        severity="warning",
+    ),
+    "NSX502": Rule(
+        "no-deployment-manifest",
+        checks="The Environment the Plan compares with has no Deployment Manifest.",
+        why="The Plan compares the project with what an Environment last received, which its"
+        " Deployment Manifest records. Each successful deploy writes one, next to the deployed"
+        " bundle in the deploying identity's folder. With none, every table looks new, so the"
+        " Plan shows each one as a `create` and warns, because some may already exist. Signed"
+        " in as anyone else, the Plan looks in that person's folder and finds none.",
+        example=Example(
+            command="nsx plan --env dev",
+            when="dev hasn't been deployed yet.",
+        ),
+        fix="Nothing to do before the Environment's first deploy, which writes the manifest."
+        " Otherwise, run the Plan signed in as the identity that deploys the Environment, as the"
+        " pull request workflow does.",
+        principle=EVERY_CHANGE_IS_REVIEWED,
+        severity="warning",
+    ),
+    "NSX503": Rule(
+        "manifest-without-definitions",
+        checks="The Environment's Deployment Manifest was written by a Nimblestax that didn't"
+        " record how each table is made.",
+        why="The Plan tells a new column from any other change by comparing each table's"
+        " definition with the one the manifest recorded. A manifest from an earlier Nimblestax"
+        " records only each table's type and file, so the Plan shows new tables and warns"
+        " instead of guessing at the rest.",
+        example=Example(
+            command="nsx plan --env dev",
+            when="dev was last deployed by an earlier Nimblestax.",
+        ),
+        fix="Deploy the Environment again with this Nimblestax, which records each table's"
+        " definition. Until then, read each table's change in the pull request.",
+        principle=EVERY_CHANGE_IS_REVIEWED,
+        severity="warning",
     ),
     "NSX901": Rule(
         "usage-error",

@@ -154,10 +154,10 @@ def test_the_checksum_record_holds_the_commit_and_nimblestax_version(project: Pa
     assert written["nimblestax_version"] == version("nimblestax")
     assert written["checksum"].startswith("sha256:")
     assert "databricks.yaml" in written["files"]
-    assert written["tables"]["sales.gold.fct_orders"] == {
-        "type": "materialized_view",
-        "file": "src/sales/gold/fct_orders.sql",
-    }
+    table = written["tables"]["sales.gold.fct_orders"]
+    assert (table["type"], table["file"]) == ("materialized_view", "src/sales/gold/fct_orders.sql")
+    assert table["definition"].startswith("sha256:")
+    assert list(table["columns"]) == ["order_id", "amount"]
 
 
 def test_a_package_built_outside_git_records_no_commit(project: Path):

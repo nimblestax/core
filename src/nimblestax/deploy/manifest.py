@@ -59,6 +59,12 @@ def store(workspace: Workspace, package: Path, env: str, written: dict) -> list[
     return []
 
 
+def read(workspace: Workspace, package: Path, env: str) -> dict | None:
+    """What `env` last received, or None if it has no Deployment Manifest yet."""
+    content = workspace.read_file(package, env, f"{workspace.bundle_root(package, env)}/{PATH}")
+    return None if content is None else json.loads(content)
+
+
 def _copy_name(written: dict) -> str:
     deployed_at = datetime.fromisoformat(written["deployed_at"])
     return f"{deployed_at:%Y%m%dT%H%M%SZ}-{written['commit'] or NO_COMMIT}.json"

@@ -341,3 +341,12 @@ def test_writing_the_reference_twice_gives_the_same_pages(tmp_path: Path):
     reference.write(tmp_path / "twice")
 
     assert generated_pages(tmp_path / "twice") == generated_pages(tmp_path / "once")
+
+
+def test_a_command_page_documents_the_fields_inside_its_results_objects(tmp_path: Path):
+    reference.write(tmp_path / "docs")
+
+    text = (tmp_path / "docs/reference/commands/plan.md").read_text()
+
+    for field in ("changes[].id", "changes[].change_class", "baseline.commit"):
+        assert f"| `{field}` |" in text, field
