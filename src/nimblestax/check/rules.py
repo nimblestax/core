@@ -230,16 +230,25 @@ def _referenced_tables(project: Project, known: set[Table]) -> list[Diagnostic]:
             to = tuple(test.references.to.split("."))
             if names.table_named(project.platform, to) in known:
                 continue
-            diagnostics.append(
-                error(
-                    "NSX213",
-                    model.config_file.relative_to(project.root).as_posix(),
-                    f"`{test.name}` refers to `{test.references.to}`, which isn't a table in this"
-                    " project.",
-                    "Correct `to` to the Logical Name of a Source, Seed or Gold Model, such as"
-                    f" `{_logical(project, Table(SHARED_DOMAIN, 'gold', 'dim_customers'))}`.",
+            file = model.config_file.relative_to(project.root).as_posix()
+            ours = project.platform.naming.style
+            refers = f"`{test.name}` refers to `{test.references.to}`"
+            if in_other_style := _in_other_style(project, known, to):
+                style, table = in_other_style
+                message = (
+                    f"{refers}, a Logical Name under `{style}`, and this project's Naming Style"
+                    f" is `{ours}`."
                 )
-            )
+                fix = (
+                    f"Write `to` as `{_logical(project, table)}`, its Logical Name under `{ours}`."
+                )
+            else:
+                message = f"{refers}, which isn't a table in this project."
+                fix = (
+                    "Correct `to` to the Logical Name of a Source, Seed or Gold Model, such as"
+                    f" `{_logical(project, Table(SHARED_DOMAIN, 'gold', 'dim_customers'))}`."
+                )
+            diagnostics.append(error("NSX213", file, message, fix))
     return diagnostics
 
 

@@ -237,7 +237,7 @@ def test_a_references_test_names_its_table_by_a_two_part_logical_name(tmp_path: 
     assert nsx(project, "validate").exit_code == 0
 
     config.write_text(
-        config.read_text().replace("to: sales_silver.orders", "to: sales.silver.orders")
+        config.read_text().replace("to: sales_silver.orders", "to: sales_silver.nope")
     )
     [failure] = failures(project)
     assert failure["rule"] == "NSX213"
@@ -257,3 +257,26 @@ def test_the_build_packages_tables_are_keyed_by_logical_name(tmp_path: Path):
         "gold.sales.fct_orders",
         "gold.sales.dim_date",
     }
+
+
+def test_a_references_tests_to_in_another_styles_shape_fails_naming_the_right_spelling(
+    tmp_path: Path,
+):
+    project = init(tmp_path, "layer-catalogs")
+    config = project / "domains/sales/models/gold/fct_orders.yaml"
+    config.write_text(
+        config.read_text() + "tests:\n  - references: {column: order_id, to: sales.silver.orders}\n"
+    )
+
+    [failure] = failures(project)
+
+    assert failure["rule"] == "NSX213"
+    assert failure["message"] == (
+        "`references(order_id, to: sales.silver.orders.order_id)` refers to"
+        " `sales.silver.orders`, a Logical Name under `system-and-domain-catalogs`, and this"
+        " project's Naming Style is `layer-catalogs`."
+    )
+    assert (
+        failure["fix"]
+        == "Write `to` as `silver.sales.orders`, its Logical Name under `layer-catalogs`."
+    )
