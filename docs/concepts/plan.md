@@ -3,7 +3,7 @@ title: The plan
 description: What the plan on a pull request shows, how to read one, and why it compares with dev.
 ---
 
-The plan shows what a pull request changes in your tables. CI posts it on the pull request, so a reviewer reads what will change without reading generated code. It runs `nsx plan`, which compares the project with dev's [deployment manifest](deployment-manifests.md), the record of what dev last received. It uses dev unless another [environment](environments.md) sets `default: true`. To compare with a different one, pass `--env`, such as `nsx plan --env prod`.
+The plan shows what a pull request changes in your tables. CI posts it on the pull request, so a reviewer reads what will change without reading generated code. `nsx plan` compares the project with dev's [deployment manifest](deployment-manifests.md), the record of what dev last received. It uses dev unless another [environment](environments.md) sets `default: true`. To compare with a different one, pass `--env`, such as `nsx plan --env prod`.
 
 In Kettle, Priya adds an `order_hour` column to `fct_orders`, and a new gold model, `daily_sales`, that totals each day's orders. Her pull request's plan is:
 
