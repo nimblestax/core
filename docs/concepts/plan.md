@@ -3,12 +3,12 @@ title: The plan
 description: What the plan on a pull request shows, how to read one, and why it compares with dev.
 ---
 
-The plan shows what a pull request changes in your tables. CI posts it on the pull request, so a reviewer reads what will change without reading generated code. It runs `nsx plan --env dev`, which compares the project with dev's [deployment manifest](deployment-manifests.md), the record of what dev last received.
+The plan shows what a pull request changes in your tables. CI posts it on the pull request, so a reviewer reads what will change without reading generated code. It runs `nsx plan`, which compares the project with dev's [deployment manifest](deployment-manifests.md), the record of what dev last received. It uses dev unless another [environment](environments.md) sets `default: true`. To compare with a different one, pass `--env`, such as `nsx plan --env prod`.
 
 In Kettle, Priya adds an `order_hour` column to `fct_orders`, and a new gold model, `daily_sales`, that totals each day's orders. Her pull request's plan is:
 
 ```console
-$ nsx plan --env dev
+$ nsx plan
 ## Plan against dev
 
 Compared with what dev last received: commit `1c3e51b`, deployed 2026-11-28T01:28:25Z.
@@ -63,7 +63,7 @@ Dev's deployment manifest sits in dev's workspace, and pull request jobs already
 
 ## On a pull request
 
-The GitHub pull request workflow has a `plan` job. It runs `nsx plan --env dev` as dev's deploying identity and posts what it prints as a comment. Each push edits that comment, so a pull request has one plan, and it is always the latest. The comment ends with the version of Nimblestax that wrote it, linking that version's changelog.
+The GitHub pull request workflow has a `plan` job. It runs `nsx plan --env dev` as dev's deploying identity and posts what it prints as a comment. It names dev, so marking another environment `default: true` never changes what a pull request is compared with. Each push edits that comment, so a pull request has one plan, and it is always the latest. The comment ends with the version of Nimblestax that wrote it, linking that version's changelog.
 
 The job asks for `pull-requests: write`, so it can comment.
 
