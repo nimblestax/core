@@ -259,3 +259,28 @@ def _raw_placeholders(sql: str) -> list[Found]:
         for token in sqlglot.tokenize(sql, dialect=DIALECT)
         if token.token_type == TokenType.RAW_STRING and "${" in token.text
     ]
+
+
+def columns(sql: str) -> dict[str, str] | None:
+    """Each column the query returns, by name, with the expression that makes it, or None when
+    its columns can't be read from the SQL alone, as with `*` or a set operation."""
+    tree = _one_statement(sql)
+    if not isinstance(tree, exp.Select):
+        return None
+    found: dict[str, str] = {}
+    for projection in tree.expressions:
+        name = projection.alias_or_name
+        if projection.is_star or not name or name.lower() in found:
+            return None
+        made = projection.this if isinstance(projection, exp.Alias) else projection
+        found[name.lower()] = made.sql(DIALECT)
+    return found
+
+
+def without_columns(sql: str) -> str:
+    """The query with its columns taken out, written the same way whatever the layout, so two
+    queries that differ only in their columns give the same text."""
+    tree = _one_statement(sql).copy()
+    if isinstance(tree, exp.Select) and columns(sql) is not None:
+        tree.set("expressions", [exp.Star()])
+    return tree.sql(DIALECT)

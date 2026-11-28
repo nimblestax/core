@@ -99,7 +99,8 @@ def _inner(field: dict[str, Any], defs: dict[str, Any], path: str) -> list[tuple
         return [(_resolve(items, defs), f"{path}[].")]
     if "oneOf" in items:
         return [(_resolve(choice, defs), f"{path}[].") for choice in items["oneOf"]]
-    if "$ref" in (field.get("additionalProperties") or {}):
+    values = field.get("additionalProperties")
+    if isinstance(values, dict) and "$ref" in values:
         return [(_resolve(field["additionalProperties"], defs), f"{path}.<name>.")]
     return []
 
@@ -154,7 +155,7 @@ def _json_page(commands: dict[str, TyperCommand]) -> str:
         " there. Logs, including the Databricks CLI's output, go to stderr.\n",
         f"```json\n{example}\n```\n",
         "## Envelope\n",
-        *_shape(output.Envelope.model_json_schema(by_alias=True)),
+        *_shape(output.Envelope.model_json_schema(by_alias=True), nested=False),
         "## Diagnostics\n\nEach diagnostic in `diagnostics` is one problem found.\n",
         *_shape(TypeAdapter(Diagnostic).json_schema()),
         "## Results\n\nEach command's page describes its `result`.\n",
@@ -270,16 +271,26 @@ def _default(option: TyperOption) -> str:
     return f"`{getattr(option.default, 'value', option.default)}`"
 
 
-def _shape(json_schema: dict[str, Any]) -> list[str]:
-    """A JSON object's fields, from the JSON Schema of the model that writes it, as sections."""
+def _shape(json_schema: dict[str, Any], nested: bool = True) -> list[str]:
+    """A JSON object's fields, from the JSON Schema of the model that writes it, as sections.
+    `nested` adds the fields of the objects inside it, unless a section of their own has them."""
     sections = [f"{json_schema['description']}\n"] if "description" in json_schema else []
-    rows = [
-        f"| `{name}` | {_json_type(field)} | {field['description']} |"
-        for name, field in json_schema["properties"].items()
-    ]
+    defs = json_schema.get("$defs", {}) if nested else {}
+    rows = list(_result_rows(json_schema, defs, ""))
     if rows:
         sections.append(_table(["Field", "Type", "Meaning"], rows))
     return sections
+
+
+def _result_rows(schema: dict[str, Any], defs: dict[str, Any], prefix: str) -> Iterator[str]:
+    """One row per field, each followed by the rows of the fields of any object in `defs` inside
+    it."""
+    for name, field in schema["properties"].items():
+        yield f"| `{prefix}{name}` | {_json_type(field)} | {field['description']} |"
+        if not defs:
+            continue
+        for inner, path in _inner(_without_null(field), defs, f"{prefix}{name}"):
+            yield from _result_rows(inner, defs, path)
 
 
 def _json_type(field: dict[str, Any]) -> str:

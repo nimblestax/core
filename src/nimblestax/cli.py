@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from typer.core import TyperGroup
 
 from nimblestax import names, output, scaffold, skills
+from nimblestax import plan as plans
 from nimblestax.build import compiler
 from nimblestax.check import model_tests, platform_objects, rules
 from nimblestax.deploy import deploy as delivery
@@ -122,6 +123,8 @@ class Outcome[Result: BaseModel]:
     text: str
     result: Result
     warnings: list[Diagnostic] = field(default_factory=list)
+    # Whether `text` already shows the warnings, so they aren't printed again above it.
+    text_shows_warnings: bool = False
 
 
 skills_app = typer.Typer(no_args_is_help=True, help="Keep the Nimblestax Skills in this project.")
@@ -175,7 +178,7 @@ def command(name: str | None = None, group: str | None = None) -> Callable:
                 )
                 typer.echo(printed)
             else:
-                for found in outcome.warnings:
+                for found in [] if outcome.text_shows_warnings else outcome.warnings:
                     _print(found)
                 typer.echo(outcome.text)
 
@@ -593,6 +596,82 @@ _DEPLOY_WITHOUT_ENV = error(
     " default Environment.",
     "Add the Environment to deploy, such as `nsx deploy --env dev`.",
 )
+
+
+class PlanChange(BaseModel):
+    id: str = Field(
+        description="Names the change the same way each time the Plan runs, such as"
+        " `update:sales.gold.fct_orders`."
+    )
+    object: str = Field(description="What changes: a table's Logical Name.")
+    object_type: str = Field(
+        description="What kind of object it is: `streaming_table` or `materialized_view`."
+    )
+    action: str = Field(description="What happens to it: `create`, `update` or `retire`.")
+    change_class: str = Field(
+        description="What is at risk: `safe` (nothing is lost), `refresh` (named tables are"
+        " rebuilt) or `destructive` (data or history is removed from a table)."
+    )
+    reason: str = Field(description="What changed, in words.")
+    rule: str | None = Field(description="The Rule behind the change, or `null` when none is.")
+    refresh_tables: list[str] = Field(
+        description="The tables the change rebuilds, by Logical Name. Empty unless"
+        " `change_class` is `refresh`."
+    )
+    downstream_domains: list[str] = Field(
+        description="The Domains whose gold reads the changed table."
+    )
+
+
+class Baseline(BaseModel):
+    env: str = Field(description="The Environment compared with.")
+    commit: str | None = Field(description="The commit it last received.")
+    deployed_at: str = Field(description="When it received it, in UTC.")
+    nimblestax_version: str = Field(description="The Nimblestax that deployed it.")
+
+
+class Planned(BaseModel):
+    env: str = Field(description="The Environment the change is compared with.")
+    baseline: Baseline | None = Field(
+        description="The Deployment Manifest compared with, or `null` when the Environment has"
+        " none yet."
+    )
+    summary: dict[str, int] = Field(
+        description="How many changes are in each Change Class: `safe`, `refresh` and"
+        " `destructive`."
+    )
+    blocked: bool = Field(
+        description="Whether Nimblestax refuses the change outright. A blocked Plan exits 1."
+    )
+    changes: list[PlanChange] = Field(description="Every change, most at risk first.")
+
+
+@command()
+def plan(
+    env: Annotated[
+        str | None,
+        typer.Option(
+            "--env",
+            help="The Environment to compare with. Left out, the default Environment.",
+            show_default=False,
+        ),
+    ] = None,
+    root: ProjectOption = Path("."),
+) -> Outcome[Planned]:
+    """Compare the project with what an Environment last received, and class each change."""
+    loaded = project.load(root)
+    env = env or loaded.platform.default_environment
+    _require_environment(loaded, env)
+    found = plans.against(loaded, env, DatabricksCli())
+    baseline = Baseline.model_validate(found.baseline) if found.baseline else None
+    planned = Planned(
+        env=env,
+        baseline=baseline,
+        summary=found.summary,
+        blocked=found.blocked,
+        changes=[PlanChange(id=change.id, **vars(change)) for change in found.changes],
+    )
+    return Outcome(plans.markdown(found), planned, found.warnings, text_shows_warnings=True)
 
 
 class Previewed(BaseModel):

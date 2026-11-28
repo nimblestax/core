@@ -50,6 +50,14 @@ class _Workspace(BaseHTTPRequestHandler):
             self._reply(200, {"warehouses": self.warehouses})
         elif self.path.startswith("/api/2.0/sql/statements/"):
             self._reply(200, self.answers.pop(0))
+        elif "/workspace/export" in self.path:
+            path = query["path"][0]
+            if path not in self.files:
+                message = f"Path ({path}) doesn't exist."
+                self._reply(404, {"error_code": "RESOURCE_DOES_NOT_EXIST", "message": message})
+            else:
+                content = base64.b64encode(self.files[path].encode()).decode()
+                self._reply(200, {"content": content, "file_type": "json"})
         elif "/workspace/list" in self.path:
             folder = query["path"][0]
             listed = [

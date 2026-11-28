@@ -22,6 +22,25 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - run: uvx --from "$NIMBLESTAX_SPEC" nsx validate --platform --env dev
 
+  # What this pull request changes in dev's tables, compared with dev's Deployment Manifest, as
+  # one comment on the pull request that each push updates.
+  plan:
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write # To post the Plan as a comment.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uvx --from "$NIMBLESTAX_SPEC" nsx plan --env dev > plan.md
+      # Edits the comment this workflow posted last, so the pull request keeps one Plan.
+      - run: gh pr comment ${{ github.event.pull_request.number }} --body-file plan.md --edit-last --create-if-none
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   # The pull request's own Preview Environment, in `pr<N>__` schemas beside dev's, built from
   # every table. Its bundle state sits under dev's identity, never a person's folder.
   preview:

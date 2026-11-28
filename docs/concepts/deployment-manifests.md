@@ -5,7 +5,7 @@ description: The record each environment keeps of the build package it last rece
 
 A deployment manifest is an environment's record of what it runs: which [build package](build-packages.md) it last received, from which commit, and the tables that package writes. Each successful `nsx deploy` writes one into that environment's workspace, and each successful `nsx preview` writes one for your [preview environment](preview-environments.md).
 
-It is the baseline a change is compared against. Nimblestax can't tell from Unity Catalog alone which config made a table, so it reads what it recorded instead.
+It is the baseline a change is compared against: the [plan](plan.md) on a pull request compares the project with dev's. Nimblestax can't tell from Unity Catalog alone which config made a table, so it reads what it recorded instead.
 
 ## What it holds
 
@@ -17,10 +17,27 @@ It is the baseline a change is compared against. Nimblestax can't tell from Unit
   "nimblestax_version": "0.1.0",
   "package_checksum": "sha256:6a0e5aa74e7f41a766a676aa2329e4dbf7356f4eef528d38970e9a7706c06b18",
   "tables": {
-    "sales.silver.orders": {"type": "streaming_table", "file": "src/sales/ingest/orders.sql"}
+    "sales.gold.fct_orders": {
+      "type": "materialized_view",
+      "file": "src/sales/gold/fct_orders.sql",
+      "definition": "sha256:509d08ee1435eeb7c77ebc2bc1873a5bff20e17de1ea0b9ce740598b40cfa71a",
+      "columns": {
+        "order_id": "sha256:ca13a6b2c9651b3841fc9ffe25a7a4fccea30a22caf1e8812a10631b958506a7",
+        "amount": "sha256:cf38d95c9c6b1d9d5125c04d41a54df57727ef4cfb3f5116a602fe2b25115c13"
+      }
+    }
   }
 }
 ```
+
+Each table in `tables` has:
+
+- **`type`**: `streaming_table` or `materialized_view`.
+- **`file`**: the generated file that makes it, in the build package.
+- **`definition`**: a checksum of what makes the table. For a gold model, its columns are left out, so adding a column leaves `definition` as it was.
+- **`columns`**: a gold model's columns, each with a checksum of the expression that makes it. It's there only when the model's SQL names every column, with no `*`.
+
+The plan compares these to tell a new column from any other change.
 
 `package_checksum` is the checksum in the package's `nimblestax.package.json`, so you can tell whether two environments run the same package.
 

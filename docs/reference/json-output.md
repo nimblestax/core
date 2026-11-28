@@ -66,6 +66,7 @@ Each command's page describes its `result`.
 - [`nsx schema`](commands/schema.md): Print a Kind's fields from the installed Nimblestax. Needs no project.
 - [`nsx compile`](commands/compile.md): Write generated code, or print it for one Environment.
 - [`nsx deploy`](commands/deploy.md): Deploy to an Environment, refresh its tables, and write its Deployment Manifest.
+- [`nsx plan`](commands/plan.md): Compare the project with what an Environment last received, and class each change.
 - [`nsx preview`](commands/preview.md): Deploy your working tree to a Preview Environment, yours or a pull request's.
 - [`nsx test`](commands/test.md): Run each Gold Model's Tests on a Preview Environment's tables, yours or a pull request's.
 - [`nsx skills update`](commands/skills.md#update): Refresh both copies of each Nimblestax Skill to this Nimblestax's version.
