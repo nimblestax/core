@@ -14,6 +14,7 @@ $ nsx compile [OPTIONS]
 | Option | Takes | Default | Meaning |
 | --- | --- | --- | --- |
 | `--env` | text |  | Print runnable SQL for this Environment. |
+| `--model` | text |  | With `--env`, print only this Gold Model's query, ready to run: its name, such as `fct_orders`, or, when more than one model has that name, its Logical Name, such as `sales.gold.fct_orders`. |
 | `--project` | path | `.` | The project folder. |
 | `--json` | Nothing |  | Print one JSON envelope. |
 
@@ -33,6 +34,14 @@ With `--env`, `compile` prints it instead.
 | --- | --- | --- |
 | `env` | string | The Environment the SQL is for. |
 | `sql` | string | Every generated file as runnable SQL for that Environment. |
+
+With `--env` and `--model`, `compile` prints only that Gold Model's query.
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `env` | string | The Environment the SQL is for. |
+| `model` | string | The Gold Model's Logical Name, such as `sales.gold.fct_orders`. |
+| `sql` | string | The Gold Model's query as runnable SQL for that Environment, without the statement that makes its table. |
 
 ## Exit codes
 

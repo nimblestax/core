@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
-from nimblestax import names
+from nimblestax import names, pick
 from nimblestax.build import bundle, compiler
 from nimblestax.check import rules
 from nimblestax.deploy import manifest, preview
@@ -73,7 +73,7 @@ def run(
     problems = errors(rules.check(project))
     if problems:
         raise Failure(problems)
-    chosen = select(project, models)
+    chosen = pick.several(project, models)
     platform = project.platform
     host = platform.hosts[platform.development_environment]
     target = preview.whose(project, workspace, pull_request)
@@ -93,9 +93,10 @@ def run(
 
     def run_one(model: Model, test: Test) -> Ran:
         # Said before the query, because a warehouse that's starting up can take minutes.
-        _say(f"  {'started':<12} {_dotted(model)}: {test.name}")
+        named = pick.logical_name(model)
+        _say(f"  {'started':<12} {named}: {test.name}")
         found = _run(workspace, host, warehouse, project, model, test, schemas)
-        _say(f"  {_outcome(found):<12} {_dotted(model)}: {test.name}  ({finished.next()})")
+        _say(f"  {_outcome(found):<12} {named}: {test.name}  ({finished.next()})")
         return found
 
     with ThreadPoolExecutor(max_workers=at_once) as pool:
@@ -108,36 +109,6 @@ def run(
 
 
 _SAYING = threading.Lock()
-
-
-def select(project: Project, names: Sequence[str]) -> list[Model]:
-    """The Gold Models `names` pick, in the project's order. Each name is a Model's name, or its
-    Logical Name when more than one Model has that name, and one value may list several,
-    separated by commas. No names picks every Model."""
-    # A name is made of identifiers, so it never holds a comma.
-    names = [part.strip() for given in names for part in given.split(",") if part.strip()]
-    if not names:
-        return list(project.models)
-    picked: set[str] = set()
-    for name in names:
-        wanted = name.lower()
-        found = [m for m in project.models if wanted in (_dotted(m), m.name.lower())]
-        if len(found) != 1:
-            raise Failure([_unselected(name, found or list(project.models))], USAGE_OR_ENVIRONMENT)
-        picked.add(_dotted(found[0]))
-    return [model for model in project.models if _dotted(model) in picked]
-
-
-def _unselected(name: str, candidates: list[Model]) -> Diagnostic:
-    listed = ", ".join(f"`{_dotted(model)}`" for model in candidates)
-    if len(candidates) > 1 and all(model.name.lower() == name.lower() for model in candidates):
-        # Two Domains, or two model Layers of one Domain, can each have a Model of one name.
-        message = f"`{name}` names more than one Gold Model."
-        fix = f"Give its Logical Name instead, one of: {listed}."
-    else:
-        message = f"`{name}` isn't a Gold Model in this project."
-        fix = f"Give a Gold Model's name or its Logical Name, one of: {listed}."
-    return error("NSX926", "", message, fix)
 
 
 def _say(line: str) -> None:
@@ -160,10 +131,6 @@ class Counter:
         with self.lock:
             self.done += 1
             return f"{self.done}/{self.total}"
-
-
-def _dotted(model: Model) -> str:
-    return f"{model.domain}.{model.layer}.{model.name}".lower()
 
 
 def _outcome(ran: Ran) -> str:

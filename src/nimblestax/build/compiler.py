@@ -37,10 +37,13 @@ def generated_files(project: Project) -> dict[Path, str]:
         layer = item.layer
         target = names.placeholders(LogicalName(item.domain, layer, item.name))
         path = Path("src") / item.domain / "gold" / f"{item.name}.sql"
-        query = sql.escape_placeholders(item.query)
-        rewritten = sql.rewrite(query, names.placeholders)
-        files[path] = model.generate(item, target, rewritten, sql.streams(item.query))
+        files[path] = model.generate(item, target, _query(item), sql.streams(item.query))
     return files
+
+
+def _query(item: model.Model) -> str:
+    """A Gold Model's query, reading each table by its placeholders."""
+    return sql.rewrite(sql.escape_placeholders(item.query), names.placeholders)
 
 
 def tables(project: Project) -> dict[str, dict]:
@@ -104,3 +107,9 @@ def print_for(project: Project, env: str) -> str:
     """Every generated file as runnable SQL for one Environment."""
     code = "\n".join(generated_files(project).values())
     return names.resolve(code, project, env)
+
+
+def query_for(project: Project, item: model.Model, env: str) -> str:
+    """A Gold Model's query alone, without the statement that makes its table, as runnable SQL
+    for one Environment."""
+    return names.resolve(_query(item), project, env).rstrip()

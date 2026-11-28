@@ -17,7 +17,7 @@ import typer
 from pydantic import BaseModel, Field
 from typer.core import TyperGroup
 
-from nimblestax import names, output, scaffold, skills
+from nimblestax import names, output, pick, scaffold, skills
 from nimblestax import plan as plans
 from nimblestax.build import compiler
 from nimblestax.check import model_tests, platform_objects, rules
@@ -526,21 +526,60 @@ class Sql(BaseModel):
     sql: str = Field(description="Every generated file as runnable SQL for that Environment.")
 
 
+class ModelSql(BaseModel):
+    """With `--env` and `--model`, `compile` prints only that Gold Model's query."""
+
+    env: str = Field(description="The Environment the SQL is for.")
+    model: str = Field(
+        description="The Gold Model's Logical Name, such as `sales.gold.fct_orders`."
+    )
+    sql: str = Field(
+        description="The Gold Model's query as runnable SQL for that Environment, without the"
+        " statement that makes its table."
+    )
+
+
 @command("compile")
 def compile_(
     env: Annotated[
         str | None, typer.Option("--env", help="Print runnable SQL for this Environment.")
     ] = None,
+    model_name: Annotated[
+        str | None,
+        typer.Option(
+            "--model",
+            help="With `--env`, print only this Gold Model's query, ready to run: its name, such"
+            " as `fct_orders`, or, when more than one model has that name, its Logical Name,"
+            " such as `sales.gold.fct_orders`.",
+            show_default=False,
+        ),
+    ] = None,
     root: ProjectOption = Path("."),
-) -> Outcome[Package | Sql]:
+) -> Outcome[Package | Sql | ModelSql]:
     """Write generated code, or print it for one Environment."""
+    if model_name and not env:
+        raise Failure([_MODEL_WITHOUT_ENV], USAGE_OR_ENVIRONMENT)
     loaded = project.load(root)
     if env:
         _require_environment(loaded, env)
+        if model_name:
+            chosen = pick.one(loaded, model_name)
+            sql = compiler.query_for(loaded, chosen, env)
+            return Outcome(sql, ModelSql(env=env, model=pick.logical_name(chosen), sql=sql))
         sql = compiler.print_for(loaded, env)
         return Outcome(sql, Sql(env=env, sql=sql))
     package = compiler.write_package(loaded)
     return Outcome(f"Wrote {package}", Package(package=str(package)))
+
+
+# A query reads tables by their real names, which differ in each Environment.
+_MODEL_WITHOUT_ENV = error(
+    "NSX901",
+    "",
+    "`nsx compile --model` prints a Gold Model's query with its tables' real names, which differ"
+    " in each Environment, and `--env` is missing.",
+    "Add the Environment, such as `nsx compile --env dev --model fct_orders`.",
+)
 
 
 class Deployed(BaseModel):

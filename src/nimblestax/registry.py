@@ -1231,7 +1231,8 @@ RULES = {
         why="`--model` picks a Gold Model by its name, such as `fct_orders`, or by its Logical"
         " Name, such as `sales.gold.fct_orders`. Two Domains, or two model Layers of one Domain,"
         " can each have a model of one name, in its own schema. Such a name could mean either,"
-        " so Nimblestax doesn't guess. It exits 2, before reaching the workspace.",
+        " so Nimblestax doesn't guess. `nsx test` and `nsx compile` both take `--model`, and"
+        " each exits 2, before reaching the workspace.",
         example=Example(command="nsx test --model fct_order"),
         fix="Give a Gold Model's name, or its Logical Name when more than one model has the name."
         " The diagnostic lists the ones it could be.",

@@ -32,6 +32,8 @@ SELECT order_id, amount
 FROM sales.silver.orders
 ```
 
+`sales.silver.orders` is a **Logical Name**, not a table you can query: it's the same in every Environment, and Nimblestax points it at the real table for each one. To run a Model by hand, use `nsx compile --env dev --model <name>`.
+
 Nimblestax compiles that for each Environment:
 
 ```console
@@ -58,7 +60,7 @@ NSX201 domains/sales/models/fct_orders.sql: sales.silver.ordrs isn't a table in 
 
 - `nsx init` creates a working project, with GitHub Actions workflows.
 - `nsx validate` checks config and SQL references with no workspace. A Model's dependencies come from its SQL, with no list to keep: CTEs, aliases and `STREAM(...)` just work, and anything Nimblestax can't read, such as `IDENTIFIER(...)`, is an error rather than a guess.
-- `nsx compile` writes generated code, or prints it for one Environment.
+- `nsx compile` writes generated code, or prints it for one Environment. With `--model`, it prints one Model's query, ready to run.
 - `nsx deploy` deploys to an Environment and refreshes its tables.
 - `nsx schema` prints any Kind's fields.
 - Every command has [`--json` output](docs/reference/json-output.md), rule IDs and fixed exit codes.

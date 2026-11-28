@@ -177,6 +177,9 @@ def _json_page(commands: dict[str, TyperCommand]) -> str:
         " and so does every `NSX3xx` rule, which `nsx validate --platform` finds in the"
         " workspace. A diagnostic with `severity` set to `warning`, such as `NSX129`, is"
         " reported and the command still exits 0.\n",
+        "`--model`, which `nsx test` and `nsx compile` take, reports `NSX926` and exits 2 when"
+        " it names no Gold Model, or a name more than one has. Its `fix` lists the models it"
+        " could be. `nsx compile --model` without `--env` reports `NSX901` and exits 2.\n",
         "When `nsx deploy` refreshes an Environment and a pipeline update fails, the"
         " diagnostic's `message` is the pipeline's own error, read from its event log: `NSX906`,"
         " `NSX907` or `NSX908`, each exiting 2. A pipeline retries a failed update once, so an"

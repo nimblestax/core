@@ -56,6 +56,27 @@ NSX302 nimblestax.platform.yaml: The schema `dev_sales.silver` isn't in dev's wo
 
 It checks one environment at a time, because each CI job signs in as one environment's identity. The workflows `nsx init --ci github` writes run it as dev, before anything else. Plain `nsx validate` reads no workspace.
 
+## Run a model by hand
+
+A logical name isn't a table you can query. Paste a gold model's SQL into a notebook or the SQL editor as written, and Databricks fails with "catalog not found", `[NO_SUCH_CATALOG_EXCEPTION]`, because no catalog is called `sales`.
+
+`nsx compile --env <env> --model <name>` prints the model's query with each logical name resolved for that environment, ready to paste and run:
+
+```console
+$ nsx compile --env dev --model dim_customers
+-- Each customer as they are now. A customer who was deleted isn't here.
+SELECT
+  customer_id,
+  name AS customer_name,
+  email,
+  city,
+  region_code
+FROM dev_sales.silver.customers
+WHERE __END_AT IS NULL
+```
+
+It prints the query alone, not the statement that makes the model's table. Give the model's name, or its logical name, such as `shared.gold.dim_customers`, when two domains have a model of that name.
+
 ## Changing the style
 
 Before your first deploy, change the style by editing that one word.
